@@ -50,9 +50,7 @@ AsoAdmin es una aplicación móvil Android desarrollada en Kotlin que permite ge
 
 1. Clona el repositorio
 
-2. Copia .env.example a app/src/main/assets/.env
-
-3. Configura las variables de Supabase en el archivo .env:
+2. Crea un archivo config.properties en app/src/main/assets y rellena las siguientes propiedades:
 
 ```
 
