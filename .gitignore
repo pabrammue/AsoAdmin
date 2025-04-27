@@ -35,3 +35,4 @@ google-services.json
 # Archivos de configuración con datos sensibles
 src/main/assets/config.properties
 src/main/assets/.env
+/app/src/main/assets/config.properties
