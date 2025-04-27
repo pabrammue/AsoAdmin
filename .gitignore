@@ -31,3 +31,7 @@ google-services.json
 
 # Android Profiling
 *.hprof
+
+# Archivos de configuración con datos sensibles
+src/main/assets/config.properties
+src/main/assets/.env
