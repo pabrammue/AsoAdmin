@@ -1,16 +1,28 @@
 package com.example.asoadmin.supabaseConection
 
+import android.content.Context
+import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.postgrest.Postgrest
-
-val supabase = createSupabaseClient(
-    supabaseUrl = "https://bpqcdxhrzwtzfnppmxla.supabase.co",
-    supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJwcWNkeGhyend0emZucHBteGxhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQzMjAyMjQsImV4cCI6MjA1OTg5NjIyNH0.meASDNvCYsL4Rmxi6wagjKQLzBzgMe24PUL3guW6Gv0"
-) {
-    install(Postgrest)
-}
+import java.util.Properties
 
 
-class supabaseClient {
+class supabaseClient(private val context: Context) {
+    private val properties = Properties().apply {
+        val inputStream = context.assets.open("config.properties")
+        load(inputStream)
+        inputStream.close()
+    }
+ //probando cosas
+    val supabase = createSupabaseClient(
+        supabaseUrl = properties.getProperty("SUPABASE_URL"),
+        supabaseKey = properties.getProperty("SUPABASE_KEY"),
+    ) {
+        install(Postgrest)
+    }
+
+    fun createClient(): SupabaseClient {
+        return supabase
+    }
 
 }

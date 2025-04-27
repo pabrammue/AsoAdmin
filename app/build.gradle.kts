@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -62,5 +63,11 @@ dependencies {
     implementation("io.github.jan-tennert.supabase:realtime-kt:1.3.2")
     implementation("io.github.jan-tennert.supabase:storage-kt:1.3.2")
     implementation("io.github.jan-tennert.supabase:gotrue-kt:1.3.2")
-    implementation ("io.ktor:ktor-client-okhttp:2.3.7")
+    implementation("io.ktor:ktor-client-okhttp:2.3.7")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.5.1")
+
+    implementation("androidx.compose.material:material-icons-extended:1.7.8")
+    implementation("io.github.cdimascio:dotenv-kotlin:6.4.1")
+
+
 }
