@@ -72,7 +72,7 @@ fun EventDetailScreen() {
         floatingActionButton = {
             FloatingActionButton(
                 onClick = {
-                    exportEvent(Evento(0, eventName, eventDescription, eventDate, eventLocation), context)
+                    saveEvent(Evento(0, eventName, eventDescription, eventDate, eventLocation), context)
                 },
                 containerColor = Color(0xFF6750A4),
                 contentColor = Color.White
@@ -192,8 +192,8 @@ fun EventDetailScreen() {
     }
 }
 
-fun exportEvent(evento: Evento, context: Context) {
-    // TODO logica para exportar asistencia al evento
+fun saveEvent(evento: Evento, context: Context) {
+    // TODO logica para gaurdar asistencia al evento
     context.startActivity(Intent(context, EventListActivity::class.java))
 }
 

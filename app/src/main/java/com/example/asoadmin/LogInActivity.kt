@@ -65,8 +65,14 @@ fun LoginScreen() {
     LaunchedEffect(Unit) {
         try {
             events = supabase.postgrest["Evento"].select().decodeList<Evento>()
+            //se muestra en el logcat el listado de eventos recibidos
+            println("###################### Eventos recibidos: $events #######################")
+
             if (events.isNotEmpty()) {
                 selectedEvent = events[0].nombre
+            }
+            else{
+                selectedEvent = "Llegó vacio"
             }
             Toast
                 .makeText(context, "Se ha conectado con la DDBB correctamente", Toast.LENGTH_LONG)
