@@ -8,19 +8,46 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Save
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Card
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.Divider
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconToggleButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -29,6 +56,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.asoadmin.classes.Evento
+import com.example.asoadmin.classes.Socio
+import com.example.asoadmin.supabaseConection.supabaseClient
+import io.github.jan.supabase.postgrest.postgrest
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class EventDetailActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -51,16 +85,17 @@ fun EventDetailScreen() {
     var searchQuery by remember { mutableStateOf("") }
     var showScreenPicker by remember { mutableStateOf(false) }
 
-    val participants = remember {
-        mutableStateListOf(
-            "Alice", "Bob", "Carlos"
-        )
+    var socios  by remember { mutableStateOf<List<Socio>>(emptyList()) }
+
+    LaunchedEffect(Unit) {
+        // Cargar lista completa sin filtros
+        socios = fetchAllSocios(context)
     }
 
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("A. Polillas / Feria") },
+                title = { Text("A. Polillas / Crear Evento") },
                 navigationIcon = {
                     IconButton(onClick = { showScreenPicker = true }) {
                         Icon(Icons.Filled.Menu, contentDescription = "Abrir menú")
@@ -72,7 +107,10 @@ fun EventDetailScreen() {
         floatingActionButton = {
             FloatingActionButton(
                 onClick = {
-                    saveEvent(Evento(0, eventName, eventDescription, eventDate, eventLocation), context)
+                    saveEvent(
+                        Evento(0, eventName, eventDescription, eventDate, eventLocation),
+                        context
+                    )
                 },
                 containerColor = Color(0xFF6750A4),
                 contentColor = Color.White
@@ -132,7 +170,10 @@ fun EventDetailScreen() {
                     singleLine = true,
                     trailingIcon = {
                         IconButton(onClick = { /* llama al plugin de maps */ }) {
-                            Icon(Icons.Filled.LocationOn, contentDescription = "Seleccionar ubicación")
+                            Icon(
+                                Icons.Filled.LocationOn,
+                                contentDescription = "Seleccionar ubicación"
+                            )
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
@@ -145,7 +186,7 @@ fun EventDetailScreen() {
                     onValueChange = { searchQuery = it },
                     placeholder = { Text("Buscar participante") },
                     trailingIcon = {
-                        IconButton(onClick = { /* funcion que filtra el listado de usuarios en funcion del nombre escrito */ }) {
+                        IconButton(onClick = { /* filtrar participantes */ }) {
                             Icon(Icons.Filled.Search, contentDescription = "Buscar")
                         }
                     },
@@ -156,23 +197,45 @@ fun EventDetailScreen() {
                     singleLine = true
                 )
             }
-            items(participants) { name ->
+            items(socios) { socio ->
+                // Estado local de cada fila
+                var isChecked by remember { mutableStateOf(false) }
+
                 Row(
                     Modifier
                         .fillMaxWidth()
-                        .clickable { /* llama a la funcion para seleccionar el participante */ }
+                        .clickable { /* seleccionar participante */ }
                         .padding(12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(name, style = MaterialTheme.typography.bodyLarge)
-                    Icon(Icons.Filled.ArrowForward, contentDescription = null)
+                    Text(socio.nombre)
+
+                    IconToggleButton(
+                        checked = isChecked,
+                        onCheckedChange = { checked ->
+                            isChecked = checked
+                            //TODO guardar el socio seleccionado
+                        }
+                    ) {
+                        if (isChecked) {
+                            Icon(
+                                Icons.Filled.Check,
+                                contentDescription = "Seleccionado"
+                            )
+                        } else {
+                            Icon(
+                                Icons.Filled.CheckBoxOutlineBlank,
+                                contentDescription = "No seleccionado"
+                            )
+                        }
+                    }
                 }
                 Divider()
             }
         }
 
-        // Screen Picker Modal
-        if (showScreenPicker) {
+            if (showScreenPicker) {
             ScreenPickerModal(
                 onDismiss = { showScreenPicker = false },
                 screens = listOf("Lista de Eventos", "Crear Evento"),
@@ -181,10 +244,12 @@ fun EventDetailScreen() {
                     when (screen) {
                         "Lista de Eventos" -> {
                             context.startActivity(Intent(context, EventListActivity::class.java))
-                            (context as? Activity)?.finish()
+                            if (context is Activity) context.finish()
                         }
-                        "Crear Evento" -> { context.startActivity(Intent(context, EventDetailActivity::class.java))
-                            (context as? Activity)?.finish() }
+                        "Crear Evento" -> {
+                            context.startActivity(Intent(context, EventDetailActivity::class.java))
+                            if (context is Activity) context.finish()
+                        }
                     }
                 }
             )
@@ -193,8 +258,44 @@ fun EventDetailScreen() {
 }
 
 fun saveEvent(evento: Evento, context: Context) {
-    // TODO logica para gaurdar asistencia al evento
-    context.startActivity(Intent(context, EventListActivity::class.java))
+    val supabase = supabaseClient(context).getClient()
+    CoroutineScope(Dispatchers.IO).launch {
+        try {
+            supabase.postgrest["Evento"]
+                .insert(
+                    mapOf(
+                        "nombre" to evento.nombre,
+                        "descripcion" to evento.descripcion,
+                        "fecha" to evento.fecha,
+                        "ubicacion" to evento.ubicacion
+                    )
+                )
+        } catch (e: Exception) {
+            e.printStackTrace()
+        } finally {
+            withContext(Dispatchers.Main) {
+                context.startActivity(Intent(context, EventListActivity::class.java))
+                if (context is Activity) {
+                    context.finish()
+                }
+            }
+        }
+    }
+}
+
+
+suspend fun fetchAllSocios(context: Context): List<Socio> {
+    var result: List<Socio>
+    result = emptyList()
+    try {
+        val client = supabaseClient(context).getClient()
+        result = client.postgrest["Socio"]
+            .select()
+            .decodeList<Socio>()
+    } catch (e: Exception) {
+        e.printStackTrace()
+    }
+    return result
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

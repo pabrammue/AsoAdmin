@@ -8,12 +8,37 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Divider
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -22,15 +47,17 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import com.example.asoadmin.classes.Administrador
 import com.example.asoadmin.classes.Evento
 import com.example.asoadmin.supabaseConection.supabaseClient
 import com.example.asoadmin.ui.theme.AsoAdminTheme
+import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class LogIn : ComponentActivity() {
+class LoginActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -52,7 +79,7 @@ class LogIn : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen() {
-    val supabase = supabaseClient(context = LocalContext.current).createClient()
+    val supabase = supabaseClient(context = LocalContext.current).getClient()
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var selectedEvent by remember { mutableStateOf("No hay eventos disponibles") }
@@ -159,7 +186,7 @@ fun LoginScreen() {
                     isLoading = true
                     coroutineScope.launch {
                         try {
-                            login(username, password, context)
+                            login(username, password, context, supabase)
                         } catch (e: Exception) {
                             Toast
                                 .makeText(context, "Error inesperado: ${e.message}", Toast.LENGTH_LONG)
@@ -238,20 +265,19 @@ fun LoginScreen() {
 suspend fun login(
     username: String,
     password: String,
-    context: android.content.Context
+    context: android.content.Context,
+    supabase: SupabaseClient
 ): Boolean {
     return try {
-        //Aun no comprueba porque la DDBB está vacía
 
-        // val administradores = supabase.postgrest["Administrador"]
-        //     .select {
-        //         eq("nombre", username)
-        //         eq("contraseña", password)
-        //     }
-        //     .decodeList<Administrador>()
+        val administradores = supabase.postgrest["Administrador"]
+            .select {
+                eq("nombre", username)
+                eq("contraseña", password)
+            }
+            .decodeList<Administrador>()
 
-        // Lo damos por true para falsear el inicio de sesion correcto
-        val loginExitoso = true // administradores.isNotEmpty()
+        val loginExitoso = administradores.isNotEmpty()
 
         withContext(Dispatchers.Main) {
             if (loginExitoso) {

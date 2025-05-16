@@ -18,7 +18,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-
 rootProject.name = "AsoAdmin"
 include(":app")
- 

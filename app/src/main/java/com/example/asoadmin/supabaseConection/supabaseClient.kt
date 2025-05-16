@@ -4,19 +4,17 @@ import android.content.Context
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.postgrest.Postgrest
-import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
 import java.util.Properties
 
-@OptIn(ExperimentalSerializationApi::class)
 class supabaseClient(private val context: Context) {
-    private val properties = Properties().apply {
-        val inputStream = context.assets.open("config.properties")
-        load(inputStream)
-        inputStream.close()
+    private val props = Properties().apply {
+        context.assets.open("config.properties").use { load(it) }
     }
 
-    // Configuramos Json para la serialización
+    private val url = props.getProperty("SUPABASE_URL")
+    private val key = props.getProperty("SUPABASE_KEY")
+
     private val jsonConfig = Json {
         ignoreUnknownKeys = true
         coerceInputValues = true
@@ -24,14 +22,12 @@ class supabaseClient(private val context: Context) {
         explicitNulls = false
     }
 
-    val supabase = createSupabaseClient(
-        supabaseUrl = properties.getProperty("SUPABASE_URL"),
-        supabaseKey = properties.getProperty("SUPABASE_KEY")
+    private val client: SupabaseClient = createSupabaseClient(
+        supabaseUrl = url,
+        supabaseKey = key
     ) {
         install(Postgrest)
     }
 
-    fun createClient(): SupabaseClient {
-        return supabase
-    }
+    fun getClient(): SupabaseClient = client
 }

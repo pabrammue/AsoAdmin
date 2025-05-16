@@ -16,7 +16,7 @@
         android:theme="@style/Theme.AsoAdmin"
         tools:targetApi="31">
         <activity
-            android:name=".LogIn"
+            android:name=".LoginActivity"
             android:exported="true"
             android:label="@string/app_name"
             android:theme="@style/Theme.AsoAdmin">

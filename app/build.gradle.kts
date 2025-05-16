@@ -11,11 +11,10 @@ android {
 
     defaultConfig {
         applicationId = "com.example.asoadmin"
-        minSdk = 24
-        targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
-
+        minSdk        = 24
+        targetSdk     = 35
+        versionCode   = 1
+        versionName   = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -28,6 +27,7 @@ android {
             )
         }
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -45,7 +45,7 @@ android {
 }
 
 dependencies {
-    // Core dependencies
+    // Compose & AndroidX
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
@@ -55,37 +55,22 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
 
-    // Testing
-    testImplementation(libs.junit)
-    androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.espresso.core)
-    androidTestImplementation(platform(libs.androidx.compose.bom))
-    androidTestImplementation(libs.androidx.ui.test.junit4)
-    debugImplementation(libs.androidx.ui.tooling)
-    debugImplementation(libs.androidx.ui.test.manifest)
-
-    // Supabase
+    // Supabase-kt (Postgrest & GoTrue)
     implementation("io.github.jan-tennert.supabase:postgrest-kt:1.3.2")
-    implementation("io.github.jan-tennert.supabase:realtime-kt:1.3.2")
-    implementation("io.github.jan-tennert.supabase:storage-kt:1.3.2")
     implementation("io.github.jan-tennert.supabase:gotrue-kt:1.3.2")
 
-    // Ktor client
-    implementation("io.ktor:ktor-client-okhttp:2.3.7")
+    // Ktor para operaciones REST manuales
     implementation("io.ktor:ktor-client-core:2.3.7")
+    implementation("io.ktor:ktor-client-okhttp:2.3.7")
     implementation("io.ktor:ktor-client-content-negotiation:2.3.7")
     implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.7")
 
-    // Serialization
+    // JSON + Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.5.1")
-
-    // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 
-    // Compose Material Icons
+    // Icons & dotenv
     implementation("androidx.compose.material:material-icons-extended:1.7.8")
-
-    // Environment variables
     implementation("io.github.cdimascio:dotenv-kotlin:6.4.1")
 }
