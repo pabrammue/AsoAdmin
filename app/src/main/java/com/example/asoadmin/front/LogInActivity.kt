@@ -48,13 +48,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import com.example.asoadmin.DDBB.supabaseClient
 import com.example.asoadmin.R
 import com.example.asoadmin.back.classes.Administrador
 import com.example.asoadmin.back.classes.Evento
+import com.example.asoadmin.back.services.EventoService
+import com.example.asoadmin.back.repositories.AdministradorRepository
 import com.example.asoadmin.ui.theme.AsoAdminTheme
-import io.github.jan.supabase.SupabaseClient
-import io.github.jan.supabase.postgrest.postgrest
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -81,7 +81,6 @@ class LoginActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen() {
-    val supabase = supabaseClient(context = LocalContext.current).getClient()
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var selectedEvent by remember { mutableStateOf("No hay eventos disponibles") }
@@ -93,7 +92,8 @@ fun LoginScreen() {
 
     LaunchedEffect(Unit) {
         try {
-            events = supabase.postgrest["Evento"].select().decodeList<Evento>()
+            val eventoService = EventoService(context)
+            events = eventoService.obtenerTodosLosEventos()
             //se muestra en el logcat el listado de eventos recibidos
             println("###################### Eventos recibidos: $events #######################")
 
@@ -188,13 +188,23 @@ fun LoginScreen() {
                     isLoading = true
                     coroutineScope.launch {
                         try {
-                            login(username, password, context, supabase)
+                            val loginExitoso = authenticate(username, password, context)
+                            withContext(Dispatchers.Main) {
+                                if (loginExitoso) {
+                                    Toast.makeText(context, "Inicio de sesión correcto", Toast.LENGTH_LONG).show()
+                                    navigateToEventList(context)
+                                } else {
+                                    Toast.makeText(context, "Inicio de sesión incorrecto", Toast.LENGTH_LONG).show()
+                                }
+                                isLoading = false
+                            }
                         } catch (e: Exception) {
-                            Toast
-                                .makeText(context, "Error inesperado: ${e.message}", Toast.LENGTH_LONG)
-                                .show()
-                        } finally {
-                            isLoading = false
+                            withContext(Dispatchers.Main) {
+                                Toast
+                                    .makeText(context, "Error al iniciar sesión: ${e.message}", Toast.LENGTH_LONG)
+                                    .show()
+                                isLoading = false
+                            }
                         }
                     }
                 } else {
@@ -264,37 +274,18 @@ fun LoginScreen() {
     }
 }
 
-suspend fun login(
-    username: String,
-    password: String,
-    context: Context,
-    supabase: SupabaseClient
-): Boolean {
+suspend fun authenticate(usuario: String, contrasenya: String, context: Context): Boolean {
     return try {
-
-        val administradores = supabase.postgrest["Administrador"]
-            .select {
-                eq("nombre", username)
-                eq("contraseña", password)
-            }
-            .decodeList<Administrador>()
-
-        val loginExitoso = true //administradores.isNotEmpty()
-
-        withContext(Dispatchers.Main) {
-            if (loginExitoso) {
-                Toast.makeText(context, "Inicio de sesión correcto", Toast.LENGTH_LONG).show()
-                navigateToEventList(context)
-            } else {
-                Toast.makeText(context, "Inicio de sesión incorrecto", Toast.LENGTH_LONG).show()
-            }
+        val administradorRepo = AdministradorRepository(context)
+        val administradores = administradorRepo.obtenerTodos()
+        
+        val administradorEncontrado = administradores.find { 
+            it.nombre == usuario && it.contraseña == contrasenya 
         }
-
-        loginExitoso
+        
+        administradorEncontrado != null
     } catch (e: Exception) {
-        withContext(Dispatchers.Main) {
-            Toast.makeText(context, "Error al iniciar sesión: ${e.message}", Toast.LENGTH_LONG).show()
-        }
+        e.printStackTrace()
         false
     }
 }

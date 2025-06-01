@@ -2,6 +2,7 @@ package com.example.asoadmin.front
 
 import android.app.Activity
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -17,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -38,9 +40,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.example.asoadmin.DDBB.supabaseClient
 import com.example.asoadmin.back.classes.Evento
-import io.github.jan.supabase.postgrest.postgrest
+import com.example.asoadmin.back.services.EventoService
+import com.example.asoadmin.back.services.ResultadoOperacion
 import kotlinx.coroutines.launch
 
 class EventListActivity : ComponentActivity() {
@@ -55,26 +57,22 @@ class EventListActivity : ComponentActivity() {
 @Composable
 fun EventListScreen() {
     val context = LocalContext.current
-    val supa    = supabaseClient(context).getClient()
+    val eventoService = EventoService(context)
     var events  by remember { mutableStateOf<List<Evento>>(emptyList()) }
     var toDelete by remember { mutableStateOf<Evento?>(null) }
     var showDialog by remember { mutableStateOf(false) }
+    var showMapsDialog by remember { mutableStateOf(false) }
+    var selectedLocationUrl by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
-        // Cargar lista
-        events = supa
-            .postgrest["Evento"]
-            .select()
-            .decodeList<Evento>()
+        // Cargar lista usando el servicio
+        events = eventoService.obtenerTodosLosEventos()
     }
 
     // Función para recargar eventos
     suspend fun reloadEvents() {
-        events = supa
-            .postgrest["Evento"]
-            .select()
-            .decodeList<Evento>()
+        events = eventoService.obtenerTodosLosEventos()
     }
 
     // Recargar eventos cuando se regrese a la pantalla
@@ -115,6 +113,16 @@ fun EventListScreen() {
                                 Text(ev.fecha, style = MaterialTheme.typography.bodySmall)
                             }
                             Row {
+                                // Botón de ubicación (solo si hay ubicación)
+                                if (ev.ubicacion.isNotBlank()) {
+                                    IconButton(onClick = {
+                                        selectedLocationUrl = ev.ubicacion
+                                        showMapsDialog = true
+                                    }) {
+                                        Icon(Icons.Filled.LocationOn, contentDescription = "Ver ubicación")
+                                    }
+                                }
+                                
                                 IconButton(onClick = {
                                     toDelete = ev
                                     showDialog = true
@@ -153,13 +161,15 @@ fun EventListScreen() {
                             // Verificar que el evento tenga un ID válido
                             val eventoId = toDelete!!.id
                             if (eventoId != null) {
-                                // DELETE sin RLS
-                                supa
-                                    .postgrest["Evento"]
-                                    .delete {
-                                        eq("id", eventoId)
+                                // Eliminar usando el servicio
+                                when (val resultado = eventoService.eliminarEventoCompleto(eventoId)) {
+                                    is ResultadoOperacion.Exito -> {
+                                        events = events.filter { it.id != eventoId }
                                     }
-                                events = events.filter { it.id != eventoId }
+                                    is ResultadoOperacion.Error -> {
+                                        println("Error al eliminar evento: ${resultado.mensaje}")
+                                    }
+                                }
                             } else {
                                 println("Error: No se puede eliminar un evento sin ID")
                             }
@@ -176,5 +186,55 @@ fun EventListScreen() {
                 }
             )
         }
+        
+        // Diálogo de confirmación para abrir Maps
+        if (showMapsDialog) {
+            AlertDialog(
+                onDismissRequest = { showMapsDialog = false },
+                title = { Text("Abrir ubicación") },
+                text = { Text("¿Deseas abrir la ubicación del evento en Google Maps?") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        openLocationInMaps(context, selectedLocationUrl)
+                        showMapsDialog = false
+                    }) {
+                        Text("Abrir Maps")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showMapsDialog = false }) {
+                        Text("Cancelar")
+                    }
+                }
+            )
+        }
+    }
+}
+
+// Función para abrir la ubicación en Google Maps
+fun openLocationInMaps(context: android.content.Context, locationUrl: String) {
+    try {
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            data = Uri.parse(locationUrl)
+            setPackage("com.google.android.apps.maps")
+        }
+        
+        // Verificar si Google Maps está instalado
+        if (intent.resolveActivity(context.packageManager) != null) {
+            context.startActivity(intent)
+        } else {
+            // Si Google Maps no está instalado, usar el navegador web
+            val webIntent = Intent(Intent.ACTION_VIEW).apply {
+                data = Uri.parse(locationUrl)
+            }
+            context.startActivity(webIntent)
+        }
+    } catch (e: Exception) {
+        // Fallback a mostrar un toast si no se puede abrir
+        android.widget.Toast.makeText(
+            context,
+            "No se pudo abrir la ubicación",
+            android.widget.Toast.LENGTH_SHORT
+        ).show()
     }
 }

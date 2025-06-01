@@ -3,6 +3,7 @@ package com.example.asoadmin.front
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -51,6 +52,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -59,11 +61,29 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import com.example.asoadmin.DDBB.supabaseClient
+import com.example.asoadmin.DDBB.ConfigManager
 import com.example.asoadmin.back.classes.Evento
 import com.example.asoadmin.back.classes.Socio
 import com.example.asoadmin.back.classes.Asistencia
-import io.github.jan.supabase.postgrest.postgrest
+import com.example.asoadmin.back.services.EventoService
+import com.example.asoadmin.back.services.SocioService
+import com.example.asoadmin.back.services.ResultadoOperacion
+import com.google.android.gms.maps.model.CameraPosition
+import com.google.android.gms.maps.model.LatLng
+import com.google.maps.android.compose.GoogleMap
+import com.google.maps.android.compose.Marker
+import com.google.maps.android.compose.MarkerState
+import com.google.maps.android.compose.rememberCameraPositionState
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationServices
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
+import android.Manifest
+import android.content.pm.PackageManager
+import android.annotation.SuppressLint
+import android.location.Geocoder
+import androidx.compose.material.icons.filled.Clear
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -87,7 +107,12 @@ class EventDetailActivity : ComponentActivity() {
 @Composable
 fun EventDetailScreen() {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val activity = context as? Activity
+    
+    // Servicios
+    val eventoService = EventoService(context)
+    val socioService = SocioService(context)
     
     // Obtener datos del evento si viene para edición
     val eventoId = activity?.intent?.getLongExtra("evento_id", -1L) ?: -1L
@@ -100,19 +125,20 @@ fun EventDetailScreen() {
     var searchQuery by remember { mutableStateOf("") }
     var showScreenPicker by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
+    var showLocationPicker by remember { mutableStateOf(false) }
 
     var socios  by remember { mutableStateOf<List<Socio>>(emptyList()) }
     var asistencias by remember { mutableStateOf<List<Asistencia>>(emptyList()) }
     var sociosSeleccionados by remember { mutableStateOf<Set<Long>>(emptySet()) }
 
     LaunchedEffect(Unit) {
-        // Cargar lista completa sin filtros
-        socios = fetchAllSocios(context)
+        // Cargar lista completa usando servicios
+        socios = socioService.obtenerTodosLosSocios()
         
         // Si está en modo edición, cargar las asistencias existentes
         if (isEditMode) {
-            asistencias = fetchAsistenciasEvento(context, eventoId)
-            sociosSeleccionados = asistencias.mapNotNull { it.idSocio }.toSet()
+            val sociosParticipantes = eventoService.obtenerSociosParticipantes(eventoId)
+            sociosSeleccionados = sociosParticipantes
         }
     }
 
@@ -134,16 +160,36 @@ fun EventDetailScreen() {
             FloatingActionButton(
                 onClick = {
                     if (isEditMode) {
-                        updateEvent(
-                            Evento(eventoId, eventName, eventDescription, eventDate, eventLocation),
-                            context
-                        )
+                        scope.launch {
+                            val resultado = eventoService.actualizarEvento(
+                                Evento(eventoId, eventName, eventDescription, eventDate, eventLocation)
+                            )
+                            when (resultado) {
+                                is ResultadoOperacion.Exito -> {
+                                    context.startActivity(Intent(context, EventListActivity::class.java))
+                                    if (context is Activity) context.finish()
+                                }
+                                is ResultadoOperacion.Error -> {
+                                    println("Error al actualizar evento: ${resultado.mensaje}")
+                                }
+                            }
+                        }
                     } else {
-                        saveEvent(
-                            Evento(null, eventName, eventDescription, eventDate, eventLocation),
-                            context,
-                            sociosSeleccionados
-                        )
+                        scope.launch {
+                            val resultado = eventoService.crearEventoConParticipantes(
+                                Evento(null, eventName, eventDescription, eventDate, eventLocation),
+                                sociosSeleccionados
+                            )
+                            when (resultado) {
+                                is ResultadoOperacion.Exito -> {
+                                    context.startActivity(Intent(context, EventListActivity::class.java))
+                                    if (context is Activity) context.finish()
+                                }
+                                is ResultadoOperacion.Error -> {
+                                    println("Error al crear evento: ${resultado.mensaje}")
+                                }
+                            }
+                        }
                     }
                 },
                 containerColor = Color(0xFF6750A4),
@@ -206,15 +252,18 @@ fun EventDetailScreen() {
                     label = { Text("Ubicación") },
                     singleLine = true,
                     trailingIcon = {
-                        IconButton(onClick = { /* llama al plugin de maps */ }) {
+                        IconButton(onClick = { showLocationPicker = true }) {
                             Icon(
                                 Icons.Filled.LocationOn,
                                 contentDescription = "Seleccionar ubicación"
                             )
                         }
                     },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showLocationPicker = true },
+                    shape = RoundedCornerShape(8.dp),
+                    readOnly = true
                 )
             }
             item {
@@ -275,13 +324,17 @@ fun EventDetailScreen() {
                                     sociosSeleccionados = sociosSeleccionados - socioId
                                     // Si está en modo edición, eliminar asistencia de la BD
                                     if (isEditMode) {
-                                        eliminarAsistencia(context, eventoId, socioId, eventDate)
+                                        scope.launch {
+                                            eventoService.removerParticipante(eventoId, socioId)
+                                        }
                                     }
                                 } else {
                                     sociosSeleccionados = sociosSeleccionados + socioId
                                     // Si está en modo edición, crear asistencia en la BD
                                     if (isEditMode) {
-                                        crearAsistencia(context, eventoId, socioId, eventDate)
+                                        scope.launch {
+                                            eventoService.agregarParticipante(eventoId, socioId, eventDate)
+                                        }
                                     }
                                 }
                             }
@@ -299,13 +352,17 @@ fun EventDetailScreen() {
                                     sociosSeleccionados = sociosSeleccionados + socioId
                                     // Si está en modo edición, crear asistencia en la BD
                                     if (isEditMode) {
-                                        crearAsistencia(context, eventoId, socioId, eventDate)
+                                        scope.launch {
+                                            eventoService.agregarParticipante(eventoId, socioId, eventDate)
+                                        }
                                     }
                                 } else {
                                     sociosSeleccionados = sociosSeleccionados - socioId
                                     // Si está en modo edición, eliminar asistencia de la BD
                                     if (isEditMode) {
-                                        eliminarAsistencia(context, eventoId, socioId, eventDate)
+                                        scope.launch {
+                                            eventoService.removerParticipante(eventoId, socioId)
+                                        }
                                     }
                                 }
                             }
@@ -391,6 +448,22 @@ fun EventDetailScreen() {
             }
         }
 
+        // Modal LocationPicker
+        if (showLocationPicker) {
+            LocationPickerModal(
+                currentLocation = eventLocation,
+                onLocationSelected = { location ->
+                    eventLocation = location
+                    showLocationPicker = false
+                },
+                onDismiss = { showLocationPicker = false },
+                onOpenMaps = {
+                    // Abrir Google Maps para búsqueda más avanzada
+                    openGoogleMaps(context)
+                }
+            )
+        }
+
         if (showScreenPicker) {
             ScreenPickerModal(
                 onDismiss = { showScreenPicker = false },
@@ -411,128 +484,6 @@ fun EventDetailScreen() {
             )
         }
     }
-}
-
-fun saveEvent(evento: Evento, context: Context, sociosSeleccionados: Set<Long>) {
-    val supabase = supabaseClient(context).getClient()
-    CoroutineScope(Dispatchers.IO).launch {
-        try {
-            println("###################### GUARDANDO EVENTO ######################")
-            println("Evento: $evento")
-            println("Socios seleccionados: $sociosSeleccionados")
-            
-            // Primero crear el evento sin el campo ID
-            val nuevoEvento = Evento(
-                id = null, // PostgreSQL auto-generará el ID
-                nombre = evento.nombre,
-                descripcion = evento.descripcion,
-                fecha = formatearFechaParaDB(evento.fecha),
-                ubicacion = evento.ubicacion
-            )
-            
-            val response = supabase.postgrest["Evento"]
-                .insert(nuevoEvento)
-                .decodeList<Evento>()
-
-            println("###################### EVENTO CREADO ######################")
-            println("Response del evento: $response")
-
-            // Obtener el ID del evento recién creado
-            val nuevoEventoId = response.firstOrNull()?.id
-            println("Nuevo evento ID: $nuevoEventoId")
-
-            // Crear las asistencias para los socios seleccionados
-            if (nuevoEventoId != null && sociosSeleccionados.isNotEmpty()) {
-                println("###################### CREANDO ASISTENCIAS MASIVAS ######################")
-                sociosSeleccionados.forEach { socioId ->
-                    println("Creando asistencia para socio: $socioId")
-                    try {
-                        // Crear objeto Asistencia sin ID (se auto-genera en la BD)
-                        val nuevaAsistencia = Asistencia(
-                            id = null, // PostgreSQL auto-generará el ID
-                            idEvento = nuevoEventoId,
-                            idSocio = socioId,
-                            fechaEvento = formatearFechaParaDB(evento.fecha)
-                        )
-                        
-                        val asistenciaResponse = supabase.postgrest["Asistencia"]
-                            .insert(nuevaAsistencia)
-                        println("Asistencia creada exitosamente: $asistenciaResponse")
-                    } catch (asistenciaError: Exception) {
-                        println("Error creando asistencia para socio $socioId: ${asistenciaError.message}")
-                        asistenciaError.printStackTrace()
-                    }
-                }
-                println("###################### ASISTENCIAS MASIVAS COMPLETADAS ######################")
-            } else {
-                println("###################### NO HAY ASISTENCIAS QUE CREAR ######################")
-                println("NuevoEventoId: $nuevoEventoId, SociosSeleccionados: ${sociosSeleccionados.size}")
-            }
-        } catch (e: Exception) {
-            println("###################### ERROR GENERAL AL GUARDAR EVENTO ######################")
-            println("Error: ${e.message}")
-            println("Stack trace: ${e.stackTrace.contentToString()}")
-            e.printStackTrace()
-        } finally {
-            withContext(Dispatchers.Main) {
-                context.startActivity(Intent(context, EventListActivity::class.java))
-                if (context is Activity) {
-                    context.finish()
-                }
-            }
-        }
-    }
-}
-
-fun updateEvent(evento: Evento, context: Context) {
-    val supabase = supabaseClient(context).getClient()
-    CoroutineScope(Dispatchers.IO).launch {
-        try {
-            // Verificar que el evento tenga un ID válido para el UPDATE
-            val idEvento = evento.id
-            if (idEvento == null) {
-                println("Error: No se puede actualizar un evento sin ID")
-                return@launch
-            }
-            
-            // Para UPDATE, usar el objeto evento completo
-            val eventoParaActualizar = Evento(
-                id = idEvento, // Mantenemos el ID para el UPDATE
-                nombre = evento.nombre,
-                descripcion = evento.descripcion,
-                fecha = formatearFechaParaDB(evento.fecha),
-                ubicacion = evento.ubicacion
-            )
-            
-            supabase.postgrest["Evento"]
-                .update(eventoParaActualizar) {
-                    eq("id", idEvento) // Usar el ID no-null
-                }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        } finally {
-            withContext(Dispatchers.Main) {
-                context.startActivity(Intent(context, EventListActivity::class.java))
-                if (context is Activity) {
-                    context.finish()
-                }
-            }
-        }
-    }
-}
-
-suspend fun fetchAllSocios(context: Context): List<Socio> {
-    var result: List<Socio>
-    result = emptyList()
-    try {
-        val client = supabaseClient(context).getClient()
-        result = client.postgrest["Socio"]
-            .select()
-            .decodeList<Socio>()
-    } catch (e: Exception) {
-        e.printStackTrace()
-    }
-    return result
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -578,117 +529,364 @@ fun ScreenPickerModal(
     }
 }
 
-// Función para cargar las asistencias de un evento
-suspend fun fetchAsistenciasEvento(context: Context, eventoId: Long): List<Asistencia> {
-    return try {
-        val client = supabaseClient(context).getClient()
-        println("###################### CARGANDO ASISTENCIAS ######################")
-        println("Cargando asistencias para eventoId: $eventoId")
-        
-        val asistencias = client.postgrest["Asistencia"]
-            .select {
-                eq("idEvento", eventoId)
-            }
-            .decodeList<Asistencia>()
-        
-        println("###################### ASISTENCIAS CARGADAS ######################")
-        println("Encontradas ${asistencias.size} asistencias: $asistencias")
-        
-        asistencias
-    } catch (e: Exception) {
-        println("###################### ERROR AL CARGAR ASISTENCIAS ######################")
-        println("Error: ${e.message}")
-        println("Stack trace: ${e.stackTrace.contentToString()}")
-        e.printStackTrace()
-        emptyList()
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun LocationPickerModal(
+    currentLocation: String,
+    onLocationSelected: (String) -> Unit,
+    onDismiss: () -> Unit,
+    onOpenMaps: () -> Unit
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    
+    // Estado para el mapa
+    var selectedLocation by remember { mutableStateOf<LatLng?>(null) }
+    var selectedAddress by remember { mutableStateOf("") }
+    var userLocation by remember { mutableStateOf<LatLng?>(null) }
+    var searchQuery by remember { mutableStateOf("") }
+    var searchResults by remember { mutableStateOf<List<Pair<String, LatLng>>>(emptyList()) }
+    var isSearching by remember { mutableStateOf(false) }
+    
+    // Cliente de ubicación y geocoder
+    val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
+    val geocoder = remember { Geocoder(context, Locale.getDefault()) }
+    
+    // Posición inicial del mapa (se actualizará con la ubicación del usuario)
+    val defaultPosition = LatLng(37.3891, -5.9845) // Sevilla como fallback
+    val cameraPositionState = rememberCameraPositionState {
+        position = CameraPosition.fromLatLngZoom(defaultPosition, 12f)
     }
-}
-
-// Función para crear una nueva asistencia
-fun crearAsistencia(context: Context, eventoId: Long, socioId: Long, fechaEvento: String) {
-    CoroutineScope(Dispatchers.IO).launch {
+    
+    // Función para generar enlace de Google Maps
+    fun generateMapsLink(latLng: LatLng): String {
+        return "https://maps.google.com/?q=${latLng.latitude},${latLng.longitude}"
+    }
+    
+    // Función para buscar ubicaciones por texto
+    suspend fun searchLocations(query: String) {
+        if (query.isBlank()) {
+            searchResults = emptyList()
+            return
+        }
+        
+        isSearching = true
         try {
-            val client = supabaseClient(context).getClient()
-            println("###################### CREANDO ASISTENCIA ######################")
-            println("EventoId: $eventoId, SocioId: $socioId, Fecha: $fechaEvento")
+            withContext(Dispatchers.IO) {
+                val addresses = geocoder.getFromLocationName(query, 5)
+                val results = addresses?.mapNotNull { address ->
+                    val location = LatLng(address.latitude, address.longitude)
+                    val name = address.getAddressLine(0) ?: address.featureName ?: "Ubicación encontrada"
+                    name to location
+                } ?: emptyList()
+                
+                withContext(Dispatchers.Main) {
+                    searchResults = results
+                }
+            }
+        } catch (e: Exception) {
+            println("Error en búsqueda: ${e.message}")
+            searchResults = emptyList()
+        } finally {
+            isSearching = false
+        }
+    }
+    
+    // Launcher para permisos de ubicación
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val fineLocationGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] ?: false
+        val coarseLocationGranted = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] ?: false
+        
+        if (fineLocationGranted || coarseLocationGranted) {
+            getUserLocation(fusedLocationClient) { location ->
+                userLocation = location
+                cameraPositionState.position = CameraPosition.fromLatLngZoom(location, 12f)
+            }
+        }
+    }
+    
+    // Solicitar ubicación al abrir el modal
+    LaunchedEffect(Unit) {
+        try {
+            val apiKey = ConfigManager.getMapsApiKey(context)
+            if (apiKey.isNotEmpty()) {
+                println("Maps API Key cargada desde config.properties")
+            }
             
-            // Crear objeto Asistencia sin ID (se auto-genera en la BD)
-            val nuevaAsistencia = Asistencia(
-                id = null, // PostgreSQL auto-generará el ID
-                idEvento = eventoId,
-                idSocio = socioId,
-                fechaEvento = formatearFechaParaDB(fechaEvento)
+            // Verificar permisos de ubicación
+            val fineLocationPermission = ContextCompat.checkSelfPermission(
+                context, Manifest.permission.ACCESS_FINE_LOCATION
+            )
+            val coarseLocationPermission = ContextCompat.checkSelfPermission(
+                context, Manifest.permission.ACCESS_COARSE_LOCATION
             )
             
-            val response = client.postgrest["Asistencia"]
-                .insert(nuevaAsistencia)
-            
-            println("###################### ASISTENCIA CREADA EXITOSAMENTE ######################")
-            println("Response: $response")
-            
-            withContext(Dispatchers.Main) {
-                android.widget.Toast.makeText(
-                    context, 
-                    "Participante agregado exitosamente", 
-                    android.widget.Toast.LENGTH_SHORT
-                ).show()
+            if (fineLocationPermission == PackageManager.PERMISSION_GRANTED ||
+                coarseLocationPermission == PackageManager.PERMISSION_GRANTED) {
+                // Ya tenemos permisos, obtener ubicación
+                getUserLocation(fusedLocationClient) { location ->
+                    userLocation = location
+                    cameraPositionState.position = CameraPosition.fromLatLngZoom(location, 12f)
+                }
+            } else {
+                // Solicitar permisos
+                locationPermissionLauncher.launch(
+                    arrayOf(
+                        Manifest.permission.ACCESS_FINE_LOCATION,
+                        Manifest.permission.ACCESS_COARSE_LOCATION
+                    )
+                )
             }
         } catch (e: Exception) {
-            println("###################### ERROR AL CREAR ASISTENCIA ######################")
-            println("Error: ${e.message}")
-            println("Stack trace: ${e.stackTrace.contentToString()}")
-            e.printStackTrace()
-            
-            withContext(Dispatchers.Main) {
-                android.widget.Toast.makeText(
-                    context, 
-                    "Error al crear asistencia: ${e.message}", 
-                    android.widget.Toast.LENGTH_LONG
-                ).show()
+            println("Error al cargar ubicación: ${e.message}")
+        }
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            dismissOnBackPress = true, 
+            dismissOnClickOutside = true,
+            usePlatformDefaultWidth = false
+        )
+    ) {
+        Card(
+            Modifier
+                .fillMaxWidth(0.98f)
+                .fillMaxSize(0.92f)
+                .padding(4.dp),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Column(
+                Modifier.padding(16.dp)
+            ) {
+                // Header
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "Seleccionar Ubicación", 
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    TextButton(onClick = onDismiss) {
+                        Text("Cancelar")
+                    }
+                }
+                
+                Spacer(Modifier.height(8.dp))
+                
+                // Campo de búsqueda
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    label = { Text("Buscar dirección o lugar") },
+                    placeholder = { Text("Ej: Calle Sierpes, Sevilla") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp),
+                    trailingIcon = {
+                        Row {
+                            if (searchQuery.isNotEmpty()) {
+                                IconButton(onClick = { 
+                                    searchQuery = ""
+                                    searchResults = emptyList()
+                                }) {
+                                    Icon(Icons.Filled.Clear, contentDescription = "Limpiar")
+                                }
+                            }
+                            IconButton(onClick = {
+                                scope.launch {
+                                    searchLocations(searchQuery)
+                                }
+                            }) {
+                                Icon(Icons.Filled.Search, contentDescription = "Buscar")
+                            }
+                        }
+                    },
+                    singleLine = true
+                )
+                
+                // Resultados de búsqueda
+                if (searchResults.isNotEmpty()) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 120.dp)
+                            .padding(vertical = 4.dp),
+                        colors = androidx.compose.material3.CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    ) {
+                        LazyColumn(
+                            modifier = Modifier.padding(8.dp)
+                        ) {
+                            items(searchResults) { (name, location) ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            selectedLocation = location
+                                            selectedAddress = generateMapsLink(location)
+                                            cameraPositionState.position = CameraPosition.fromLatLngZoom(location, 15f)
+                                            searchResults = emptyList()
+                                            searchQuery = ""
+                                        }
+                                        .padding(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        Icons.Filled.LocationOn,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.padding(end = 8.dp)
+                                    )
+                                    Text(
+                                        text = name,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                Spacer(Modifier.height(8.dp))
+                
+                // Mapa más grande
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f), // Ocupar todo el espacio disponible
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    GoogleMap(
+                        modifier = Modifier.fillMaxSize(),
+                        cameraPositionState = cameraPositionState,
+                        onMapClick = { latLng ->
+                            selectedLocation = latLng
+                            selectedAddress = generateMapsLink(latLng)
+                        }
+                    ) {
+                        // Marcador de ubicación del usuario
+                        userLocation?.let { location ->
+                            Marker(
+                                state = MarkerState(position = location),
+                                title = "Tu ubicación"
+                            )
+                        }
+                        
+                        // Marcador de ubicación seleccionada
+                        selectedLocation?.let { location ->
+                            Marker(
+                                state = MarkerState(position = location),
+                                title = "Ubicación seleccionada"
+                            )
+                        }
+                        
+                        // Marcadores de resultados de búsqueda
+                        searchResults.forEach { (name, location) ->
+                            Marker(
+                                state = MarkerState(position = location),
+                                title = name,
+                                onClick = {
+                                    selectedLocation = location
+                                    selectedAddress = generateMapsLink(location)
+                                    searchResults = emptyList()
+                                    searchQuery = ""
+                                    true
+                                }
+                            )
+                        }
+                    }
+                }
+                
+                Spacer(Modifier.height(16.dp))
+                
+                // Enlace seleccionado
+                if (selectedAddress.isNotEmpty()) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        colors = androidx.compose.material3.CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp)
+                        ) {
+                            Text(
+                                "Enlace de ubicación:",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                selectedAddress,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
+                }
+                
+                // Botones
+                Spacer(Modifier.height(16.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    // Botón para ir a mi ubicación
+                    TextButton(
+                        onClick = {
+                            userLocation?.let { location ->
+                                cameraPositionState.position = CameraPosition.fromLatLngZoom(location, 15f)
+                            }
+                        }
+                    ) {
+                        Icon(
+                            Icons.Filled.LocationOn,
+                            contentDescription = "Mi ubicación",
+                            modifier = Modifier.padding(end = 4.dp)
+                        )
+                        Text("Mi ubicación")
+                    }
+                    
+                    // Botón confirmar
+                    TextButton(
+                        onClick = {
+                            if (selectedAddress.isNotEmpty()) {
+                                onLocationSelected(selectedAddress)
+                            }
+                        },
+                        enabled = selectedAddress.isNotEmpty()
+                    ) {
+                        Text("Confirmar")
+                    }
+                }
             }
         }
     }
 }
 
-// Función para eliminar una asistencia
-fun eliminarAsistencia(context: Context, eventoId: Long, socioId: Long, fechaEvento: String) {
-    CoroutineScope(Dispatchers.IO).launch {
-        try {
-            val client = supabaseClient(context).getClient()
-            println("###################### ELIMINANDO ASISTENCIA ######################")
-            println("EventoId: $eventoId, SocioId: $socioId, Fecha: $fechaEvento")
-            
-            val response = client.postgrest["Asistencia"]
-                .delete {
-                    eq("idEvento", eventoId)
-                    eq("idSocio", socioId)
-                }
-            
-            println("###################### ASISTENCIA ELIMINADA EXITOSAMENTE ######################")
-            println("Response: $response")
-            
-            withContext(Dispatchers.Main) {
-                android.widget.Toast.makeText(
-                    context, 
-                    "Participante removido exitosamente", 
-                    android.widget.Toast.LENGTH_SHORT
-                ).show()
-            }
-        } catch (e: Exception) {
-            println("###################### ERROR AL ELIMINAR ASISTENCIA ######################")
-            println("Error: ${e.message}")
-            println("Stack trace: ${e.stackTrace.contentToString()}")
-            e.printStackTrace()
-            
-            withContext(Dispatchers.Main) {
-                android.widget.Toast.makeText(
-                    context, 
-                    "Error al eliminar asistencia: ${e.message}", 
-                    android.widget.Toast.LENGTH_LONG
-                ).show()
+// Función auxiliar para obtener la ubicación del usuario
+@SuppressLint("MissingPermission")
+private fun getUserLocation(
+    fusedLocationClient: FusedLocationProviderClient,
+    onLocationReceived: (LatLng) -> Unit
+) {
+    fusedLocationClient.lastLocation
+        .addOnSuccessListener { location ->
+            if (location != null) {
+                onLocationReceived(LatLng(location.latitude, location.longitude))
             }
         }
-    }
+        .addOnFailureListener {
+            // Si falla, usar Sevilla como fallback
+            onLocationReceived(LatLng(37.3891, -5.9845))
+        }
 }
 
 // Función auxiliar para formatear fecha para la base de datos
@@ -735,6 +933,35 @@ fun parseDateStringToMillis(dateString: String): Long? {
     } catch (e: Exception) {
         // Si no se puede parsear, usar la fecha actual
         Calendar.getInstance().timeInMillis
+    }
+}
+
+// Función para abrir Google Maps
+fun openGoogleMaps(context: Context) {
+    try {
+        // Intent para abrir Google Maps en modo de búsqueda
+        val mapIntent = Intent(Intent.ACTION_VIEW).apply {
+            data = Uri.parse("geo:0,0?q=")
+            setPackage("com.google.android.apps.maps")
+        }
+        
+        // Verificar si Google Maps está instalado
+        if (mapIntent.resolveActivity(context.packageManager) != null) {
+            context.startActivity(mapIntent)
+        } else {
+            // Si Google Maps no está instalado, usar el navegador web
+            val webIntent = Intent(Intent.ACTION_VIEW).apply {
+                data = Uri.parse("https://maps.google.com/")
+            }
+            context.startActivity(webIntent)
+        }
+    } catch (e: Exception) {
+        // Fallback a mostrar un toast si no se puede abrir Maps
+        android.widget.Toast.makeText(
+            context,
+            "No se pudo abrir Google Maps",
+            android.widget.Toast.LENGTH_SHORT
+        ).show()
     }
 }
 

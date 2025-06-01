@@ -41,7 +41,23 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
+    
+    // Leer config.properties para obtener MAPS_API_KEY
+    val configFile = project.file("src/main/assets/config.properties")
+    val mapsApiKey = if (configFile.exists()) {
+        configFile.readLines()
+            .find { it.startsWith("MAPS_API_KEY=") }
+            ?.substringAfter("=")
+            ?: ""
+    } else {
+        ""
+    }
+    
+    // Configurar BuildConfig y manifest placeholders
+    android.defaultConfig.manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
+    android.defaultConfig.buildConfigField("String", "MAPS_API_KEY", "\"$mapsApiKey\"")
 }
 
 dependencies {
@@ -73,4 +89,19 @@ dependencies {
     // Icons & dotenv
     implementation("androidx.compose.material:material-icons-extended:1.7.8")
     implementation("io.github.cdimascio:dotenv-kotlin:6.4.1")
+    
+    // Google Maps para Compose
+    implementation("com.google.maps.android:maps-compose:4.3.3")
+    implementation("com.google.android.gms:play-services-maps:18.2.0")
+    implementation("com.google.android.gms:play-services-location:21.0.1")
+    implementation("com.google.android.libraries.places:places:3.3.0")
+    
+    // Testing dependencies
+    testImplementation("junit:junit:4.13.2")
+    androidTestImplementation("androidx.test.ext:junit:1.1.5")
+    androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    debugImplementation("androidx.compose.ui:ui-tooling")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
 }

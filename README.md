@@ -1,86 +1,203 @@
 # AsoAdmin
 
-AsoAdmin es una aplicación móvil Android desarrollada en Kotlin que permite gestionar eventos y asociaciones. Utiliza Material Design 3 para una interfaz moderna y Supabase como backend.
+AsoAdmin es una aplicación móvil Android desarrollada en Kotlin que permite gestionar eventos de asociaciones. Utiliza Material Design 3 para una interfaz moderna, Supabase como backend, y Google Maps para gestión de ubicaciones.
 
-## Características
+## 🚀 Características Principales
 
-- 🔐 Sistema de autenticación de administradores
+### 🔐 **Autenticación**
+- Sistema de login para administradores
+- Autenticación segura contra base de datos PostgreSQL
+- Gestión de sesiones
 
-- 📅 Gestión completa de eventos
+### 📅 **Gestión Completa de Eventos**
+- **Listado de eventos** con diseño moderno
+- **Creación y edición** de eventos completos
+- **Eliminación** con confirmación de seguridad
+- **DatePicker nativo** para selección de fechas
+- **Gestión de participantes** con checkbox intuitivo
+- **Búsqueda en tiempo real** de participantes
 
-  - Listado de eventos con búsqueda
+### 👥 **Gestión de Participantes**
+- Selección múltiple de socios para eventos
+- Agregar/remover participantes en modo edición
+- Búsqueda por nombre, número de socio o DNI
+- Contador de participantes seleccionados
 
-  - Creación y edición de eventos
+### 🗺️ **Integración Avanzada con Maps**
+- **Geolocalización automática** del usuario
+- **Búsqueda por texto** (direcciones, lugares, POIs)
+- **Selección visual** de ubicaciones en mapa interactivo
+- **Generación automática** de enlaces de Google Maps
+- **Botón de ubicación** en lista de eventos
+- **Confirmación de seguridad** antes de abrir Maps
 
-  - Eliminación de eventos con confirmación
+### 🎨 **Diseño Moderno**
+- **Material Design 3** completo
+- **Tema claro personalizado** con colores corporativos
+- **Navegación intuitiva** entre pantallas
+- **Componentes nativos** de Android
+- **Responsive design** adaptable
 
-  - Exportación de eventos
+### 🏗️ **Arquitectura Limpia**
+- **Separación de responsabilidades** Frontend/Backend
+- **Repositorios** para acceso a datos
+- **Servicios** para lógica de negocio
+- **Modelos** serializables para PostgreSQL
+- **Manejo de errores** robusto
 
-- 🎨 Interfaz moderna con Material Design 3
+## 🛠️ Tecnologías
 
-  - Tema claro personalizado
+### **Frontend**
+- **Kotlin** con Jetpack Compose
+- **Material Design 3** UI Components
+- **Compose Navigation**
+- **Coroutines** para programación asíncrona
 
-  - Componentes Material 3
+### **Backend & Base de Datos**
+- **Supabase** (PostgreSQL + API REST)
+- **Row Level Security** para seguridad
+- **Arquitectura de repositorios** y servicios
 
-  - Navegación intuitiva
+### **Maps & Ubicación**
+- **Google Maps Compose**
+- **Google Play Services Location**
+- **Geocoding API** para búsqueda de direcciones
 
-- 🗃️ Integración con Supabase
+### **Otras Librerías**
+- **kotlinx.serialization** para JSON
+- **Material Icons Extended**
 
-## Tecnologías
+## 📋 Requisitos
 
-- Kotlin
+- **Android Studio** Meerkat 2024.3.1 o superior
+- **SDK mínimo**: Android 21 (Lollipop)
+- **Kotlin** 1.9.0 o superior
+- **Gradle** 8.0 o superior
 
-- Jetpack Compose
+## ⚙️ Configuración
 
-- Material Design 3
-
-- Supabase
-
-- dotenv-kotlin
-
-## Requisitos
-
-- Android Studio Meerkat | 2024.3.1 o superior
-
-- SDK mínimo: Android 21
-
-- Kotlin 1.9.0 o superior
-
-## Configuración
-
-1. Clona el repositorio
-
-2. Crea un archivo config.properties en app/src/main/assets y rellena las siguientes propiedades:
-
+### 1. **Clonar el repositorio**
+```bash
+git clone https://github.com/tu-usuario/AsoAdmin.git
+cd AsoAdmin
 ```
 
-SUPABASE_URL=tu_url_aqui
-
-SUPABASE_KEY=tu_key_aqui
-
+### 2. **Configurar Supabase**
+Crea un archivo `config.properties` en `app/src/main/assets/`:
+```properties
+SUPABASE_URL=tu_url_de_supabase_aqui
+SUPABASE_KEY=tu_anon_key_de_supabase_aqui
 ```
 
-4. Sincroniza el proyecto con Gradle
-
-## Estructura del Proyecto
-
+### 3. **Configurar Google Maps**
+1. Obtén una API Key de Google Cloud Console
+2. Habilita las APIs:
+   - Maps SDK for Android
+   - Geocoding API
+   - Places API (opcional)
+3. Agrega la clave en `app/src/main/AndroidManifest.xml`:
+```xml
+<meta-data
+    android:name="com.google.android.geo.API_KEY"
+    android:value="TU_GOOGLE_MAPS_API_KEY" />
 ```
 
-app/
+### 4. **Configurar Base de Datos**
+Ejecuta el DDL en tu instancia de Supabase:
+```sql
+-- Ver /DDBB/schema.sql para el esquema completo
+-- Incluye tablas: Evento, Socio, Administrador, Asistencia, Carnet
+```
 
-├─ src/
+### 5. **Sincronizar proyecto**
+```bash
+./gradlew sync
+```
 
-│  ├─ main/
+## 📁 Estructura del Proyecto
 
-│  │  ├─ java/com/example/asoadmin/
+```
+app/src/main/java/com/example/asoadmin/
+├── 🎨 front/                    # Frontend (UI & Activities)
+│   ├── LogInActivity.kt         # Pantalla de autenticación
+│   ├── EventListActivity.kt     # Lista de eventos
+│   └── EventDetailActivity.kt   # Crear/editar eventos
+│
+├── 🔧 back/                     # Backend (Lógica de Negocio)
+│   ├── 📊 services/             # Servicios de negocio
+│   │   ├── EventoService.kt     # Lógica de eventos
+│   │   └── SocioService.kt      # Lógica de socios
+│   │
+│   ├── 🗄️ repositories/        # Acceso a datos
+│   │   ├── EventoRepository.kt
+│   │   ├── SocioRepository.kt
+│   │   ├── AsistenciaRepository.kt
+│   │   └── AdministradorRepository.kt
+│   │
+│   └── 📋 classes/              # Modelos de datos
+│       ├── Evento.kt
+│       ├── Socio.kt
+│       ├── Asistencia.kt
+│       ├── Administrador.kt
+│       └── Carnet.kt
+│
+├── 🗃️ DDBB/                    # Configuración de BD
+│   ├── supabaseClient.kt        # Cliente de conexión
+│   └── ConfigManager.kt         # Gestión de configuración
+│
+└── 🎨 ui/theme/                 # Temas y estilos
+    ├── Color.kt
+    ├── Theme.kt
+    └── Type.kt
+```
 
-│  │  │  ├─ classes/           # Modelos de datos
+## 📱 Funcionalidades por Pantalla
 
-│  │  │  ├─ supabaseConection/ # Cliente de Supabase
+### **🔑 LoginActivity**
+- Autenticación de administradores
+- Carga automática de eventos disponibles
+- Validación de credenciales
 
-│  │  │  ├─ ui/               # Temas y componentes UI
+### **📋 EventListActivity**
+- Lista de eventos con Material Cards
+- Botones de acción: Editar, Eliminar, Ver Ubicación
+- FAB para crear nuevos eventos
+- Confirmaciones de seguridad
 
-│  │  │  └─ activities/       # Actividades principales
+### **✏️ EventDetailActivity**
+- Formulario completo de eventos
+- DatePicker nativo para fechas
+- Maps integrado para ubicaciones
+- Gestión de participantes en tiempo real
+- Búsqueda de socios con filtros
 
-│  │  └─ assets/             # Recursos y configuración
+## 🔒 Seguridad
 
+- **Solo lectura** para administradores y socios (no se pueden crear/editar)
+- **Validación de permisos** para ubicación
+- **Confirmaciones** antes de acciones destructivas
+- **Manejo de errores** robusto
+
+## 🚀 Próximas Mejoras
+
+- [ ] Exportación de datos de eventos
+- [ ] Notificaciones push
+- [ ] Modo offline
+- [ ] Dashboard de estadísticas
+- [ ] Filtros avanzados en lista de eventos
+
+## 📄 Licencia
+
+Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más detalles.
+
+## 👥 Contribuir
+
+1. Fork el proyecto
+2. Crea una rama para tu feature (`git checkout -b feature/AmazingFeature`)
+3. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)
+4. Push a la rama (`git push origin feature/AmazingFeature`)
+5. Abre un Pull Request
+
+---
+
+**Desarrollado con ❤️ para la gestión moderna de asociaciones**

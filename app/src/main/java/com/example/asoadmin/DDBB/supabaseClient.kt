@@ -5,15 +5,11 @@ import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.postgrest.Postgrest
 import kotlinx.serialization.json.Json
-import java.util.Properties
 
 class supabaseClient(private val context: Context) {
-    private val props = Properties().apply {
-        context.assets.open("config.properties").use { load(it) }
-    }
-
-    private val url = props.getProperty("SUPABASE_URL")
-    private val key = props.getProperty("SUPABASE_KEY")
+    
+    private val url = ConfigManager.getSupabaseUrl(context)
+    private val key = ConfigManager.getSupabaseKey(context)
 
     private val jsonConfig = Json {
         ignoreUnknownKeys = true
