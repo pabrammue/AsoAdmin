@@ -1,4 +1,4 @@
-package com.example.asoadmin.classes
+package com.example.asoadmin.back.classes
 
 import kotlinx.serialization.InternalSerializationApi
 import kotlinx.serialization.SerialName
@@ -6,13 +6,16 @@ import kotlinx.serialization.Serializable
 
 @OptIn(InternalSerializationApi::class)
 @Serializable
-data class Carnet(
+data class Asistencia(
     @SerialName("id")
-    val id: Int,
+    val id: Long? = null,
+
+    @SerialName("idEvento")
+    val idEvento: Long,
 
     @SerialName("idSocio")
-    val idSocio: Int,
+    val idSocio: Long? = null,
 
-    @SerialName("fechaEmision")
-    val fechaEmision: String? = null
+    @SerialName("fechaEvento")
+    val fechaEvento: String? = null
 )

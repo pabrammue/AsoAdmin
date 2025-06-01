@@ -1,4 +1,4 @@
-package com.example.asoadmin.supabaseConection
+package com.example.asoadmin.DDBB
 
 import android.content.Context
 import io.github.jan.supabase.SupabaseClient

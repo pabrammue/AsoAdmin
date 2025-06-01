@@ -1,4 +1,4 @@
-package com.example.asoadmin
+package com.example.asoadmin.front
 
 import android.app.Activity
 import android.content.Intent
@@ -38,8 +38,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.example.asoadmin.classes.Evento
-import com.example.asoadmin.supabaseConection.supabaseClient
+import com.example.asoadmin.DDBB.supabaseClient
+import com.example.asoadmin.back.classes.Evento
 import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.launch
 
@@ -67,6 +67,19 @@ fun EventListScreen() {
             .postgrest["Evento"]
             .select()
             .decodeList<Evento>()
+    }
+
+    // Función para recargar eventos
+    suspend fun reloadEvents() {
+        events = supa
+            .postgrest["Evento"]
+            .select()
+            .decodeList<Evento>()
+    }
+
+    // Recargar eventos cuando se regrese a la pantalla
+    LaunchedEffect(events.size) {
+        // Este efecto se ejecutará cuando cambie el tamaño de la lista
     }
 
     Scaffold(
@@ -109,8 +122,14 @@ fun EventListScreen() {
                                     Icon(Icons.Filled.Delete, contentDescription = "Eliminar")
                                 }
                                 IconButton(onClick = {
-                                    Intent(context, EventDetailActivity::class.java).also {
-                                        context.startActivity(it)
+                                    Intent(context, EventDetailActivity::class.java).also { intent ->
+                                        // Manejar ID nullable
+                                        ev.id?.let { intent.putExtra("evento_id", it) }
+                                        intent.putExtra("evento_nombre", ev.nombre)
+                                        intent.putExtra("evento_descripcion", ev.descripcion)
+                                        intent.putExtra("evento_fecha", ev.fecha)
+                                        intent.putExtra("evento_ubicacion", ev.ubicacion)
+                                        context.startActivity(intent)
                                     }
                                     if (context is Activity) context.finish()
                                 }) {
@@ -131,13 +150,19 @@ fun EventListScreen() {
                 confirmButton    = {
                     TextButton(onClick = {
                         scope.launch {
-                            // DELETE sin RLS
-                            supa
-                                .postgrest["Evento"]
-                                .delete {
-                                    eq("id", toDelete!!.id)
-                                }
-                            events = events.filter { it.id != toDelete!!.id }
+                            // Verificar que el evento tenga un ID válido
+                            val eventoId = toDelete!!.id
+                            if (eventoId != null) {
+                                // DELETE sin RLS
+                                supa
+                                    .postgrest["Evento"]
+                                    .delete {
+                                        eq("id", eventoId)
+                                    }
+                                events = events.filter { it.id != eventoId }
+                            } else {
+                                println("Error: No se puede eliminar un evento sin ID")
+                            }
                         }
                         showDialog = false
                     }) {

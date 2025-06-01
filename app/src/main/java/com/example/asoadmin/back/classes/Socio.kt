@@ -1,4 +1,4 @@
-package com.example.asoadmin.classes
+package com.example.asoadmin.back.classes
 
 import kotlinx.serialization.InternalSerializationApi
 import kotlinx.serialization.SerialName
@@ -8,13 +8,13 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class Socio(
     @SerialName("id")
-    val id: Int,
+    val id: Long? = null,
 
     @SerialName("nombre")
     val nombre: String,
 
     @SerialName("nSocio")
-    val nSocio: Int? = null,
+    val nSocio: Long? = null,
 
     @SerialName("dni")
     val dni: String? = null,
