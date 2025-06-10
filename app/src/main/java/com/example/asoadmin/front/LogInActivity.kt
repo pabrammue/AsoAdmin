@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -270,6 +271,36 @@ fun LoginScreen() {
                     }
                 }
             }
+        }
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        // Botón Registro de evento
+        Button(
+            onClick = {
+                val eventoSeleccionado = events.find { it.nombre == selectedEvent }
+                if (eventoSeleccionado != null) {
+                    val intent = Intent(context, LectorCarnetActivity::class.java)
+                    intent.putExtra("evento_id", eventoSeleccionado.id)
+                    intent.putExtra("evento_nombre", eventoSeleccionado.nombre)
+                    intent.putExtra("evento_descripcion", eventoSeleccionado.descripcion)
+                    intent.putExtra("evento_fecha", eventoSeleccionado.fecha)
+                    intent.putExtra("evento_ubicacion", eventoSeleccionado.ubicacion)
+                    context.startActivity(intent)
+                } else {
+                    Toast.makeText(context, "No hay evento seleccionado", Toast.LENGTH_SHORT).show()
+                }
+            },
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
+            modifier = Modifier.fillMaxWidth(),
+            enabled = events.isNotEmpty() && selectedEvent != "No hay eventos disponibles" && selectedEvent != "Llegó vacio"
+        ) {
+            Icon(
+                Icons.Default.QrCodeScanner,
+                contentDescription = "Registro de evento",
+                modifier = Modifier.padding(end = 8.dp)
+            )
+            Text("Registro de evento", modifier = Modifier.padding(end = 8.dp))
         }
     }
 }

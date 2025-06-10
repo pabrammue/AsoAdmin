@@ -8,7 +8,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class Carnet(
     @SerialName("id")
-    val id: Long,
+    val id: Long? = null,
 
     @SerialName("idSocio")
     val idSocio: Long,

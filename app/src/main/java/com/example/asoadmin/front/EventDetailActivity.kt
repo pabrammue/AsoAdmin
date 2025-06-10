@@ -18,11 +18,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
 import androidx.compose.material.icons.filled.DateRange
@@ -30,23 +34,28 @@ import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.Divider
+import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -68,6 +77,10 @@ import com.example.asoadmin.back.classes.Asistencia
 import com.example.asoadmin.back.services.EventoService
 import com.example.asoadmin.back.services.SocioService
 import com.example.asoadmin.back.services.ResultadoOperacion
+import com.example.asoadmin.ui.theme.AsoAdminTheme
+import com.example.asoadmin.ui.theme.TopAppBarWithDrawer
+import com.example.asoadmin.ui.theme.NavigationDrawerContent
+import com.example.asoadmin.ui.theme.navegarAPantalla
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.GoogleMap
@@ -98,7 +111,11 @@ class EventDetailActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            EventDetailScreen()
+            AsoAdminTheme(
+                darkTheme = false
+            ) {
+                EventDetailScreen()
+            }
         }
     }
 }
@@ -109,6 +126,9 @@ fun EventDetailScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val activity = context as? Activity
+    
+    // Estados del navigation drawer
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     
     // Servicios
     val eventoService = EventoService(context)
@@ -142,346 +162,360 @@ fun EventDetailScreen() {
         }
     }
 
-    Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { 
-                    Text(if (isEditMode) "A. Polillas / Editar Evento" else "A. Polillas / Crear Evento") 
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            NavigationDrawerContent(
+                pantallaActual = if (isEditMode) "Editar Evento" else "Crear Evento",
+                onPantallaSelected = { pantalla ->
+                    navegarAPantalla(context, pantalla)
                 },
-                navigationIcon = {
-                    IconButton(onClick = { showScreenPicker = true }) {
-                        Icon(Icons.Filled.Menu, contentDescription = "Abrir menú")
+                onDismiss = {
+                    scope.launch {
+                        drawerState.close()
                     }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color(0xFFF6F2F9))
+                }
             )
-        },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = {
-                    if (isEditMode) {
+        }
+    ) {
+        Scaffold(
+            topBar = {
+                TopAppBarWithDrawer(
+                    title = if (isEditMode) "Editar Evento" else "Crear Evento",
+                    subtitle = "A. Polillas",
+                    onDrawerOpen = {
                         scope.launch {
-                            val resultado = eventoService.actualizarEvento(
-                                Evento(eventoId, eventName, eventDescription, eventDate, eventLocation)
-                            )
-                            when (resultado) {
-                                is ResultadoOperacion.Exito -> {
-                                    context.startActivity(Intent(context, EventListActivity::class.java))
-                                    if (context is Activity) context.finish()
-                                }
-                                is ResultadoOperacion.Error -> {
-                                    println("Error al actualizar evento: ${resultado.mensaje}")
-                                }
-                            }
-                        }
-                    } else {
-                        scope.launch {
-                            val resultado = eventoService.crearEventoConParticipantes(
-                                Evento(null, eventName, eventDescription, eventDate, eventLocation),
-                                sociosSeleccionados
-                            )
-                            when (resultado) {
-                                is ResultadoOperacion.Exito -> {
-                                    context.startActivity(Intent(context, EventListActivity::class.java))
-                                    if (context is Activity) context.finish()
-                                }
-                                is ResultadoOperacion.Error -> {
-                                    println("Error al crear evento: ${resultado.mensaje}")
-                                }
-                            }
+                            drawerState.open()
                         }
                     }
-                },
-                containerColor = Color(0xFF6750A4),
-                contentColor = Color.White
-            ) {
-                Icon(Icons.Filled.Save, contentDescription = if (isEditMode) "Actualizar evento" else "Guardar evento")
-            }
-        }
-    ) { innerPadding ->
-        LazyColumn(
-            Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            item {
-                OutlinedTextField(
-                    value = eventName,
-                    onValueChange = { eventName = it },
-                    label = { Text("Nombre") },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp),
-                    singleLine = true
                 )
-            }
-            item {
-                OutlinedTextField(
-                    value = eventDescription,
-                    onValueChange = { eventDescription = it },
-                    label = { Text("Descripción") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(100.dp),
-                    shape = RoundedCornerShape(8.dp)
-                )
-            }
-            item {
-                OutlinedTextField(
-                    value = eventDate,
-                    onValueChange = { eventDate = it },
-                    label = { Text("Fecha") },
-                    singleLine = true,
-                    trailingIcon = {
-                        IconButton(onClick = { showDatePicker = true }) {
-                            Icon(Icons.Filled.DateRange, contentDescription = "Seleccionar fecha")
+            },
+            floatingActionButton = {
+                FloatingActionButton(
+                    onClick = {
+                        if (isEditMode) {
+                            scope.launch {
+                                val resultado = eventoService.actualizarEvento(
+                                    Evento(eventoId, eventName, eventDescription, eventDate, eventLocation)
+                                )
+                                when (resultado) {
+                                    is ResultadoOperacion.Exito -> {
+                                        context.startActivity(Intent(context, EventListActivity::class.java))
+                                        if (context is Activity) context.finish()
+                                    }
+                                    is ResultadoOperacion.Error -> {
+                                        println("Error al actualizar evento: ${resultado.mensaje}")
+                                    }
+                                }
+                            }
+                        } else {
+                            scope.launch {
+                                val resultado = eventoService.crearEventoConParticipantes(
+                                    Evento(null, eventName, eventDescription, eventDate, eventLocation),
+                                    sociosSeleccionados
+                                )
+                                when (resultado) {
+                                    is ResultadoOperacion.Exito -> {
+                                        context.startActivity(Intent(context, EventListActivity::class.java))
+                                        if (context is Activity) context.finish()
+                                    }
+                                    is ResultadoOperacion.Error -> {
+                                        println("Error al crear evento: ${resultado.mensaje}")
+                                    }
+                                }
+                            }
                         }
                     },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { showDatePicker = true },
-                    shape = RoundedCornerShape(8.dp),
-                    readOnly = true
-                )
-            }
-            item {
-                OutlinedTextField(
-                    value = eventLocation,
-                    onValueChange = { eventLocation = it },
-                    label = { Text("Ubicación") },
-                    singleLine = true,
-                    trailingIcon = {
-                        IconButton(onClick = { showLocationPicker = true }) {
-                            Icon(
-                                Icons.Filled.LocationOn,
-                                contentDescription = "Seleccionar ubicación"
-                            )
-                        }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { showLocationPicker = true },
-                    shape = RoundedCornerShape(8.dp),
-                    readOnly = true
-                )
-            }
-            item {
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    placeholder = { Text("Buscar participante") },
-                    trailingIcon = {
-                        IconButton(onClick = { searchQuery = "" }) {
-                            Icon(Icons.Filled.Search, contentDescription = "Buscar")
-                        }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-                    shape = RoundedCornerShape(50),
-                    singleLine = true
-                )
-            }
-
-            // Contador de participantes seleccionados
-            item {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp)
+                    containerColor = MaterialTheme.colorScheme.primary
                 ) {
-                    Text(
-                        text = "Participantes seleccionados: ${sociosSeleccionados.size}",
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.padding(16.dp)
+                    Icon(Icons.Filled.Save, contentDescription = "Guardar")
+                }
+            }
+        ) { padding ->
+            LazyColumn(
+                Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                item {
+                    OutlinedTextField(
+                        value = eventName,
+                        onValueChange = { eventName = it },
+                        label = { Text("Nombre") },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp),
+                        singleLine = true
                     )
                 }
-            }
-
-            // Filtrar socios basado en la búsqueda
-            val sociosFiltrados = if (searchQuery.isBlank()) {
-                socios
-            } else {
-                socios.filter { 
-                    it.nombre.contains(searchQuery, ignoreCase = true) ||
-                    it.nSocio?.toString()?.contains(searchQuery) == true ||
-                    it.dni?.contains(searchQuery, ignoreCase = true) == true
+                item {
+                    OutlinedTextField(
+                        value = eventDescription,
+                        onValueChange = { eventDescription = it },
+                        label = { Text("Descripción") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(100.dp),
+                        shape = RoundedCornerShape(8.dp)
+                    )
                 }
-            }
-
-            items(sociosFiltrados) { socio ->
-                // Usar el estado global de asistencias en lugar del estado local
-                val isChecked = socio.id?.let { sociosSeleccionados.contains(it) } ?: false
-
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .clickable { 
-                            // Alternar selección del socio
-                            socio.id?.let { socioId ->
-                                if (isChecked) {
-                                    sociosSeleccionados = sociosSeleccionados - socioId
-                                    // Si está en modo edición, eliminar asistencia de la BD
-                                    if (isEditMode) {
-                                        scope.launch {
-                                            eventoService.removerParticipante(eventoId, socioId)
-                                        }
-                                    }
-                                } else {
-                                    sociosSeleccionados = sociosSeleccionados + socioId
-                                    // Si está en modo edición, crear asistencia en la BD
-                                    if (isEditMode) {
-                                        scope.launch {
-                                            eventoService.agregarParticipante(eventoId, socioId, eventDate)
-                                        }
-                                    }
-                                }
+                item {
+                    OutlinedTextField(
+                        value = eventDate,
+                        onValueChange = { eventDate = it },
+                        label = { Text("Fecha") },
+                        singleLine = true,
+                        trailingIcon = {
+                            IconButton(onClick = { showDatePicker = true }) {
+                                Icon(Icons.Filled.DateRange, contentDescription = "Seleccionar fecha")
                             }
-                        }
-                        .padding(12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconToggleButton(
-                        checked = isChecked,
-                        onCheckedChange = { checked ->
-                            // Alternar selección del socio
-                            socio.id?.let { socioId ->
-                                if (checked) {
-                                    sociosSeleccionados = sociosSeleccionados + socioId
-                                    // Si está en modo edición, crear asistencia en la BD
-                                    if (isEditMode) {
-                                        scope.launch {
-                                            eventoService.agregarParticipante(eventoId, socioId, eventDate)
-                                        }
-                                    }
-                                } else {
-                                    sociosSeleccionados = sociosSeleccionados - socioId
-                                    // Si está en modo edición, eliminar asistencia de la BD
-                                    if (isEditMode) {
-                                        scope.launch {
-                                            eventoService.removerParticipante(eventoId, socioId)
-                                        }
-                                    }
-                                }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { showDatePicker = true },
+                        shape = RoundedCornerShape(8.dp),
+                        readOnly = true
+                    )
+                }
+                item {
+                    OutlinedTextField(
+                        value = eventLocation,
+                        onValueChange = { eventLocation = it },
+                        label = { Text("Ubicación") },
+                        singleLine = true,
+                        trailingIcon = {
+                            IconButton(onClick = { showLocationPicker = true }) {
+                                Icon(
+                                    Icons.Filled.LocationOn,
+                                    contentDescription = "Seleccionar ubicación"
+                                )
                             }
-                        }
-                    ) {
-                        if (isChecked) {
-                            Icon(
-                                Icons.Filled.Check,
-                                contentDescription = "Seleccionado"
-                            )
-                        } else {
-                            Icon(
-                                Icons.Filled.CheckBoxOutlineBlank,
-                                contentDescription = "No seleccionado"
-                            )
-                        }
-                    }
-                    
-                    Column(
-                        modifier = Modifier.weight(1f)
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { showLocationPicker = true },
+                        shape = RoundedCornerShape(8.dp),
+                        readOnly = true
+                    )
+                }
+                item {
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        placeholder = { Text("Buscar participante") },
+                        trailingIcon = {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(Icons.Filled.Search, contentDescription = "Buscar")
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        shape = RoundedCornerShape(50),
+                        singleLine = true
+                    )
+                }
+
+                // Contador de participantes seleccionados
+                item {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp)
                     ) {
                         Text(
-                            text = socio.nombre,
-                            style = MaterialTheme.typography.bodyLarge
+                            text = "Participantes seleccionados: ${sociosSeleccionados.size}",
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.padding(16.dp)
                         )
-                        Row {
-                            if (socio.nSocio != null) {
-                                Text(
-                                    text = "N° ${socio.nSocio}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                }
+
+                // Filtrar socios basado en la búsqueda
+                val sociosFiltrados = if (searchQuery.isBlank()) {
+                    socios
+                } else {
+                    socios.filter { 
+                        it.nombre.contains(searchQuery, ignoreCase = true) ||
+                        it.nSocio?.toString()?.contains(searchQuery) == true ||
+                        it.dni?.contains(searchQuery, ignoreCase = true) == true
+                    }
+                }
+
+                items(sociosFiltrados) { socio ->
+                    // Usar el estado global de asistencias en lugar del estado local
+                    val isChecked = socio.id?.let { sociosSeleccionados.contains(it) } ?: false
+
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .clickable { 
+                                // Alternar selección del socio
+                                socio.id?.let { socioId ->
+                                    if (isChecked) {
+                                        sociosSeleccionados = sociosSeleccionados - socioId
+                                        // Si está en modo edición, eliminar asistencia de la BD
+                                        if (isEditMode) {
+                                            scope.launch {
+                                                eventoService.removerParticipante(eventoId, socioId)
+                                            }
+                                        }
+                                    } else {
+                                        sociosSeleccionados = sociosSeleccionados + socioId
+                                        // Si está en modo edición, crear asistencia en la BD
+                                        if (isEditMode) {
+                                            scope.launch {
+                                                eventoService.agregarParticipante(eventoId, socioId, eventDate)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            .padding(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconToggleButton(
+                            checked = isChecked,
+                            onCheckedChange = { checked ->
+                                // Alternar selección del socio
+                                socio.id?.let { socioId ->
+                                    if (checked) {
+                                        sociosSeleccionados = sociosSeleccionados + socioId
+                                        // Si está en modo edición, crear asistencia en la BD
+                                        if (isEditMode) {
+                                            scope.launch {
+                                                eventoService.agregarParticipante(eventoId, socioId, eventDate)
+                                            }
+                                        }
+                                    } else {
+                                        sociosSeleccionados = sociosSeleccionados - socioId
+                                        // Si está en modo edición, eliminar asistencia de la BD
+                                        if (isEditMode) {
+                                            scope.launch {
+                                                eventoService.removerParticipante(eventoId, socioId)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        ) {
+                            if (isChecked) {
+                                Icon(
+                                    Icons.Filled.Check,
+                                    contentDescription = "Seleccionado"
+                                )
+                            } else {
+                                Icon(
+                                    Icons.Filled.CheckBoxOutlineBlank,
+                                    contentDescription = "No seleccionado"
                                 )
                             }
-                            if (socio.dni != null) {
-                                Text(
-                                    text = if (socio.nSocio != null) " • DNI: ${socio.dni}" else "DNI: ${socio.dni}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                        }
+                        
+                        Column(
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(
+                                text = socio.nombre,
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            Row {
+                                if (socio.nSocio != null) {
+                                    Text(
+                                        text = "N° ${socio.nSocio}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                if (socio.dni != null) {
+                                    Text(
+                                        text = if (socio.nSocio != null) " • DNI: ${socio.dni}" else "DNI: ${socio.dni}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                             }
                         }
                     }
+                    Divider()
                 }
-                Divider()
             }
-        }
 
-        // Modal DatePicker
-        if (showDatePicker) {
-            val initialSelectedDateMillis = remember {
-                parseDateStringToMillis(eventDate)
-            }
-            val datePickerState = rememberDatePickerState(
-                initialSelectedDateMillis = initialSelectedDateMillis
-            )
-            
-            DatePickerDialog(
-                onDismissRequest = { showDatePicker = false },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            datePickerState.selectedDateMillis?.let { millis ->
-                                val calendar = Calendar.getInstance()
-                                calendar.timeInMillis = millis
-                                val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-                                eventDate = dateFormat.format(calendar.time)
+            // Modal DatePicker
+            if (showDatePicker) {
+                val initialSelectedDateMillis = remember {
+                    parseDateStringToMillis(eventDate)
+                }
+                val datePickerState = rememberDatePickerState(
+                    initialSelectedDateMillis = initialSelectedDateMillis
+                )
+                
+                DatePickerDialog(
+                    onDismissRequest = { showDatePicker = false },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                datePickerState.selectedDateMillis?.let { millis ->
+                                    val calendar = Calendar.getInstance()
+                                    calendar.timeInMillis = millis
+                                    val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                                    eventDate = dateFormat.format(calendar.time)
+                                }
+                                showDatePicker = false
                             }
-                            showDatePicker = false
+                        ) {
+                            Text("Confirmar")
                         }
-                    ) {
-                        Text("Confirmar")
+                    },
+                    dismissButton = {
+                        TextButton(
+                            onClick = { showDatePicker = false }
+                        ) {
+                            Text("Cancelar")
+                        }
                     }
-                },
-                dismissButton = {
-                    TextButton(
-                        onClick = { showDatePicker = false }
-                    ) {
-                        Text("Cancelar")
-                    }
+                ) {
+                    DatePicker(state = datePickerState)
                 }
-            ) {
-                DatePicker(state = datePickerState)
             }
-        }
 
-        // Modal LocationPicker
-        if (showLocationPicker) {
-            LocationPickerModal(
-                currentLocation = eventLocation,
-                onLocationSelected = { location ->
-                    eventLocation = location
-                    showLocationPicker = false
-                },
-                onDismiss = { showLocationPicker = false },
-                onOpenMaps = {
-                    // Abrir Google Maps para búsqueda más avanzada
-                    openGoogleMaps(context)
-                }
-            )
-        }
+            // Modal LocationPicker
+            if (showLocationPicker) {
+                LocationPickerModal(
+                    currentLocation = eventLocation,
+                    onLocationSelected = { location ->
+                        eventLocation = location
+                        showLocationPicker = false
+                    },
+                    onDismiss = { showLocationPicker = false },
+                    onOpenMaps = {
+                        // Abrir Google Maps para búsqueda más avanzada
+                        openGoogleMaps(context)
+                    }
+                )
+            }
 
-        if (showScreenPicker) {
-            ScreenPickerModal(
-                onDismiss = { showScreenPicker = false },
-                screens = listOf("Lista de Eventos", "Crear Evento"),
-                onScreenSelected = { screen ->
-                    showScreenPicker = false
-                    when (screen) {
-                        "Lista de Eventos" -> {
-                            context.startActivity(Intent(context, EventListActivity::class.java))
-                            if (context is Activity) context.finish()
-                        }
-                        "Crear Evento" -> {
-                            context.startActivity(Intent(context, EventDetailActivity::class.java))
-                            if (context is Activity) context.finish()
+            if (showScreenPicker) {
+                ScreenPickerModal(
+                    onDismiss = { showScreenPicker = false },
+                    screens = listOf("Lista de Eventos", "Crear Evento"),
+                    onScreenSelected = { screen ->
+                        showScreenPicker = false
+                        when (screen) {
+                            "Lista de Eventos" -> {
+                                context.startActivity(Intent(context, EventListActivity::class.java))
+                                if (context is Activity) context.finish()
+                            }
+                            "Crear Evento" -> {
+                                context.startActivity(Intent(context, EventDetailActivity::class.java))
+                                if (context is Activity) context.finish()
+                            }
                         }
                     }
-                }
-            )
+                )
+            }
         }
     }
 }

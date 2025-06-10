@@ -19,17 +19,21 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
+import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -43,13 +47,23 @@ import androidx.compose.ui.unit.dp
 import com.example.asoadmin.back.classes.Evento
 import com.example.asoadmin.back.services.EventoService
 import com.example.asoadmin.back.services.ResultadoOperacion
+import com.example.asoadmin.ui.theme.AsoAdminTheme
+import com.example.asoadmin.ui.theme.TopAppBarWithDrawer
+import com.example.asoadmin.ui.theme.NavigationDrawerContent
+import com.example.asoadmin.ui.theme.navegarAPantalla
 import kotlinx.coroutines.launch
 
 class EventListActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        setContent { EventListScreen() }
+        setContent { 
+            AsoAdminTheme(
+                darkTheme = false
+            ) {
+                EventListScreen() 
+            }
+        }
     }
 }
 
@@ -64,6 +78,9 @@ fun EventListScreen() {
     var showMapsDialog by remember { mutableStateOf(false) }
     var selectedLocationUrl by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
+
+    // Estados del navigation drawer
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
 
     LaunchedEffect(Unit) {
         // Cargar lista usando el servicio
@@ -80,68 +97,106 @@ fun EventListScreen() {
         // Este efecto se ejecutará cuando cambie el tamaño de la lista
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(title = { Text("Lista de Eventos") })
-        },
-        floatingActionButton = {
-            FloatingActionButton(onClick = {
-                Intent(context, EventDetailActivity::class.java).also {
-                    context.startActivity(it)
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            NavigationDrawerContent(
+                pantallaActual = "Lista de Eventos",
+                onPantallaSelected = { pantalla ->
+                    navegarAPantalla(context, pantalla)
+                },
+                onDismiss = {
+                    scope.launch {
+                        drawerState.close()
+                    }
                 }
-                if (context is Activity) context.finish()
-            }) {
-                Icon(Icons.Filled.Add, contentDescription = "Añadir")
-            }
+            )
         }
-    ) { padding ->
-        Column(Modifier
-            .padding(padding)
-            .padding(16.dp)
-        ) {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(events) { ev ->
-                    Card(Modifier.fillMaxWidth()) {
-                        Row(
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Column {
-                                Text(ev.nombre)
-                                Text(ev.fecha, style = MaterialTheme.typography.bodySmall)
+    ) {
+        Scaffold(
+            topBar = {
+                TopAppBarWithDrawer(
+                    title = "Lista de Eventos",
+                    onDrawerOpen = {
+                        scope.launch {
+                            drawerState.open()
+                        }
+                    },
+                    actions = {
+                        // Botón para ir a la lista de socios
+                        IconButton(onClick = {
+                            Intent(context, SocioListActivity::class.java).also {
+                                context.startActivity(it)
                             }
-                            Row {
-                                // Botón de ubicación (solo si hay ubicación)
-                                if (ev.ubicacion.isNotBlank()) {
+                        }) {
+                            Icon(
+                                Icons.Filled.Person,
+                                contentDescription = "Ver Socios",
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                )
+            },
+            floatingActionButton = {
+                FloatingActionButton(onClick = {
+                    Intent(context, EventDetailActivity::class.java).also {
+                        context.startActivity(it)
+                    }
+                    if (context is Activity) context.finish()
+                }) {
+                    Icon(Icons.Filled.Add, contentDescription = "Añadir")
+                }
+            }
+        ) { padding ->
+            Column(Modifier
+                .padding(padding)
+                .padding(16.dp)
+            ) {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(events) { ev ->
+                        Card(Modifier.fillMaxWidth()) {
+                            Row(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column {
+                                    Text(ev.nombre)
+                                    Text(ev.fecha, style = MaterialTheme.typography.bodySmall)
+                                }
+                                Row {
+                                    // Botón de ubicación (solo si hay ubicación)
+                                    if (ev.ubicacion.isNotBlank()) {
+                                        IconButton(onClick = {
+                                            selectedLocationUrl = ev.ubicacion
+                                            showMapsDialog = true
+                                        }) {
+                                            Icon(Icons.Filled.LocationOn, contentDescription = "Ver ubicación")
+                                        }
+                                    }
+                                    
                                     IconButton(onClick = {
-                                        selectedLocationUrl = ev.ubicacion
-                                        showMapsDialog = true
+                                        toDelete = ev
+                                        showDialog = true
                                     }) {
-                                        Icon(Icons.Filled.LocationOn, contentDescription = "Ver ubicación")
+                                        Icon(Icons.Filled.Delete, contentDescription = "Eliminar")
                                     }
-                                }
-                                
-                                IconButton(onClick = {
-                                    toDelete = ev
-                                    showDialog = true
-                                }) {
-                                    Icon(Icons.Filled.Delete, contentDescription = "Eliminar")
-                                }
-                                IconButton(onClick = {
-                                    Intent(context, EventDetailActivity::class.java).also { intent ->
-                                        // Manejar ID nullable
-                                        ev.id?.let { intent.putExtra("evento_id", it) }
-                                        intent.putExtra("evento_nombre", ev.nombre)
-                                        intent.putExtra("evento_descripcion", ev.descripcion)
-                                        intent.putExtra("evento_fecha", ev.fecha)
-                                        intent.putExtra("evento_ubicacion", ev.ubicacion)
-                                        context.startActivity(intent)
+                                    IconButton(onClick = {
+                                        Intent(context, EventDetailActivity::class.java).also { intent ->
+                                            // Manejar ID nullable
+                                            ev.id?.let { intent.putExtra("evento_id", it) }
+                                            intent.putExtra("evento_nombre", ev.nombre)
+                                            intent.putExtra("evento_descripcion", ev.descripcion)
+                                            intent.putExtra("evento_fecha", ev.fecha)
+                                            intent.putExtra("evento_ubicacion", ev.ubicacion)
+                                            context.startActivity(intent)
+                                        }
+                                        if (context is Activity) context.finish()
+                                    }) {
+                                        Icon(Icons.Filled.Edit, contentDescription = "Editar")
                                     }
-                                    if (context is Activity) context.finish()
-                                }) {
-                                    Icon(Icons.Filled.Edit, contentDescription = "Editar")
                                 }
                             }
                         }
@@ -154,7 +209,7 @@ fun EventListScreen() {
             AlertDialog(
                 onDismissRequest = { showDialog = false },
                 title            = { Text("Eliminar evento") },
-                text             = { Text("¿Borrar “${toDelete!!.nombre}”?") },
+                text             = { Text("¿Borrar \"${toDelete!!.nombre}\"?") },
                 confirmButton    = {
                     TextButton(onClick = {
                         scope.launch {
