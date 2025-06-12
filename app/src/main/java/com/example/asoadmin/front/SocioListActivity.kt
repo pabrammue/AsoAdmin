@@ -8,10 +8,12 @@ import android.nfc.NdefRecord
 import android.nfc.NfcAdapter
 import android.nfc.Tag
 import android.nfc.tech.Ndef
+import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -40,21 +42,31 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import androidx.compose.ui.platform.LocalContext
 
+//----------------------------------------------------------------------------------------------
+// COMPONENTE: ACTIVITY PRINCIPAL DE LISTA DE SOCIOS
+// DESCRIPCIÓN: Gestiona la lista de socios con funcionalidad para crear carnets NFC
+//----------------------------------------------------------------------------------------------
 class SocioListActivity : ComponentActivity() {
     
+    // Componentes NFC
     private var nfcAdapter: NfcAdapter? = null
     private var pendingIntent: PendingIntent? = null
     private var intentFiltersArray: Array<IntentFilter>? = null
     private var techListsArray: Array<Array<String>>? = null
     
+    // Servicios
     private lateinit var carnetService: CarnetService
     
+    // Estados de UI
     private var socioSeleccionado by mutableStateOf<SocioConCarnet?>(null)
     private var esperandoNFC by mutableStateOf(false)
     private var sociosConCarnet by mutableStateOf<List<SocioConCarnet>>(emptyList())
     private var isLoading by mutableStateOf(true)
     
-    // Función para recargar datos desde cualquier parte de la clase
+    //----------------------------------------------------------------------------------------------
+    // COMPONENTE: CARGA DE DATOS
+    // DESCRIPCIÓN: Función para actualizar la lista de socios con su estado de carnet
+    //----------------------------------------------------------------------------------------------
     private fun recargarDatos() {
         lifecycleScope.launch {
             isLoading = true
@@ -63,6 +75,10 @@ class SocioListActivity : ComponentActivity() {
         }
     }
     
+    //----------------------------------------------------------------------------------------------
+    // COMPONENTE: INICIALIZACIÓN DE ACTIVITY
+    // DESCRIPCIÓN: Configura la Activity y carga los datos iniciales
+    //----------------------------------------------------------------------------------------------
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
@@ -84,6 +100,10 @@ class SocioListActivity : ComponentActivity() {
         }
     }
     
+    //----------------------------------------------------------------------------------------------
+    // COMPONENTE: CONFIGURACIÓN NFC
+    // DESCRIPCIÓN: Configura el adaptador NFC y los filtros para lectura/escritura de tarjetas
+    //----------------------------------------------------------------------------------------------
     private fun configurarNFC() {
         nfcAdapter = NfcAdapter.getDefaultAdapter(this)
         
@@ -115,6 +135,10 @@ class SocioListActivity : ComponentActivity() {
         techListsArray = arrayOf(arrayOf(Ndef::class.java.name))
     }
     
+    //----------------------------------------------------------------------------------------------
+    // COMPONENTE: GESTIÓN DEL CICLO DE VIDA
+    // DESCRIPCIÓN: Maneja la activación/desactivación de NFC según el ciclo de vida de la Activity
+    //----------------------------------------------------------------------------------------------
     override fun onResume() {
         super.onResume()
         nfcAdapter?.enableForegroundDispatch(this, pendingIntent, intentFiltersArray, techListsArray)
@@ -125,6 +149,11 @@ class SocioListActivity : ComponentActivity() {
         nfcAdapter?.disableForegroundDispatch(this)
     }
     
+    //----------------------------------------------------------------------------------------------
+    // COMPONENTE: DETECCIÓN DE NFC
+    // DESCRIPCIÓN: Maneja los intents recibidos cuando se detecta una tarjeta NFC
+    //----------------------------------------------------------------------------------------------
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         
@@ -140,6 +169,11 @@ class SocioListActivity : ComponentActivity() {
         }
     }
     
+    //----------------------------------------------------------------------------------------------
+    // COMPONENTE: ESCRITURA DE TARJETA NFC
+    // DESCRIPCIÓN: Escribe la información del carnet en una tarjeta NFC
+    //----------------------------------------------------------------------------------------------
+    @RequiresApi(Build.VERSION_CODES.O)
     private fun escribirEnTarjeta(tag: Tag, socioConCarnet: SocioConCarnet) {
         lifecycleScope.launch {
             var carnetCreado: Boolean = false

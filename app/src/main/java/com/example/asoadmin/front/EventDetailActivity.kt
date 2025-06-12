@@ -1,13 +1,19 @@
 package com.example.asoadmin.front
 
+import android.Manifest
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.location.Geocoder
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -18,26 +24,19 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowForward
-import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.Divider
@@ -53,7 +52,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
@@ -65,47 +63,41 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.core.content.ContextCompat
 import com.example.asoadmin.DDBB.ConfigManager
+import com.example.asoadmin.back.classes.Asistencia
 import com.example.asoadmin.back.classes.Evento
 import com.example.asoadmin.back.classes.Socio
-import com.example.asoadmin.back.classes.Asistencia
 import com.example.asoadmin.back.services.EventoService
-import com.example.asoadmin.back.services.SocioService
 import com.example.asoadmin.back.services.ResultadoOperacion
+import com.example.asoadmin.back.services.SocioService
 import com.example.asoadmin.ui.theme.AsoAdminTheme
-import com.example.asoadmin.ui.theme.TopAppBarWithDrawer
 import com.example.asoadmin.ui.theme.NavigationDrawerContent
+import com.example.asoadmin.ui.theme.TopAppBarWithDrawer
 import com.example.asoadmin.ui.theme.navegarAPantalla
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.rememberCameraPositionState
-import com.google.android.gms.location.FusedLocationProviderClient
-import com.google.android.gms.location.LocationServices
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.content.ContextCompat
-import android.Manifest
-import android.content.pm.PackageManager
-import android.annotation.SuppressLint
-import android.location.Geocoder
-import androidx.compose.material.icons.filled.Clear
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
-import java.util.Locale
 import java.util.Calendar
-import java.util.Date
+import java.util.Locale
 
+//----------------------------------------------------------------------------------------------
+// COMPONENTE: ACTIVITY PRINCIPAL DE DETALLE DE EVENTO
+// DESCRIPCIÓN: Punto de entrada para la pantalla de creación/edición de eventos
+//----------------------------------------------------------------------------------------------
 class EventDetailActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -120,6 +112,10 @@ class EventDetailActivity : ComponentActivity() {
     }
 }
 
+//----------------------------------------------------------------------------------------------
+// COMPONENTE: PANTALLA PRINCIPAL DE DETALLE DE EVENTO
+// DESCRIPCIÓN: Formulario para crear/editar eventos con gestión de participantes
+//----------------------------------------------------------------------------------------------
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EventDetailScreen() {
@@ -138,6 +134,7 @@ fun EventDetailScreen() {
     val eventoId = activity?.intent?.getLongExtra("evento_id", -1L) ?: -1L
     val isEditMode = eventoId != -1L
     
+    // Estados para los campos del formulario
     var eventName by remember { mutableStateOf(activity?.intent?.getStringExtra("evento_nombre") ?: "") }
     var eventDescription by remember { mutableStateOf(activity?.intent?.getStringExtra("evento_descripcion") ?: "") }
     var eventDate by remember { mutableStateOf(activity?.intent?.getStringExtra("evento_fecha") ?: "2023-08-17") }
@@ -147,10 +144,12 @@ fun EventDetailScreen() {
     var showDatePicker by remember { mutableStateOf(false) }
     var showLocationPicker by remember { mutableStateOf(false) }
 
+    // Estados para la lista de socios y asistencias
     var socios  by remember { mutableStateOf<List<Socio>>(emptyList()) }
     var asistencias by remember { mutableStateOf<List<Asistencia>>(emptyList()) }
     var sociosSeleccionados by remember { mutableStateOf<Set<Long>>(emptySet()) }
 
+    // Cargar datos iniciales
     LaunchedEffect(Unit) {
         // Cargar lista completa usando servicios
         socios = socioService.obtenerTodosLosSocios()
@@ -162,6 +161,10 @@ fun EventDetailScreen() {
         }
     }
 
+    //----------------------------------------------------------------------------------------------
+    // COMPONENTE: ESTRUCTURA PRINCIPAL CON NAVEGACIÓN Y SCAFFOLD
+    // DESCRIPCIÓN: Define la estructura de navegación y el contenedor de la UI
+    //----------------------------------------------------------------------------------------------
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
@@ -190,6 +193,10 @@ fun EventDetailScreen() {
                     }
                 )
             },
+            //----------------------------------------------------------------------------------------------
+            // COMPONENTE: BOTÓN DE GUARDAR
+            // DESCRIPCIÓN: FAB para guardar el evento (creación o actualización)
+            //----------------------------------------------------------------------------------------------
             floatingActionButton = {
                 FloatingActionButton(
                     onClick = {
@@ -358,7 +365,7 @@ fun EventDetailScreen() {
                                         // Si está en modo edición, eliminar asistencia de la BD
                                         if (isEditMode) {
                                             scope.launch {
-                                                eventoService.removerParticipante(eventoId, socioId)
+                                                eventoService.borrarSocio(eventoId, socioId)
                                             }
                                         }
                                     } else {
@@ -394,7 +401,7 @@ fun EventDetailScreen() {
                                         // Si está en modo edición, eliminar asistencia de la BD
                                         if (isEditMode) {
                                             scope.launch {
-                                                eventoService.removerParticipante(eventoId, socioId)
+                                                eventoService.borrarSocio(eventoId, socioId)
                                             }
                                         }
                                     }

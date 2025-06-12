@@ -11,7 +11,9 @@ class EventoRepository(private val context: Context) {
     
     private val client = supabaseClient(context).getClient()
     
-    // Función auxiliar para formatear fecha para la base de datos
+    /**
+     *Función auxiliar para formatear fecha para la base de datos
+     */
     private fun formatearFechaParaDB(fechaString: String): String {
         return try {
             // Si la fecha ya está en formato YYYY-MM-DD, devolverla tal como está
@@ -33,21 +35,18 @@ class EventoRepository(private val context: Context) {
                             return formatoSalida.format(fecha)
                         }
                     } catch (e: Exception) {
-                        // Continuar con el siguiente formato
                     }
                 }
                 
-                // Si no se puede parsear, devolver la fecha tal como está
                 fechaString
             }
         } catch (e: Exception) {
-            // En caso de error, devolver la fecha original
             fechaString
         }
     }
     
     /**
-     * Obtener todos los eventos
+     * Obtiene todos los eventos
      */
     suspend fun obtenerTodosLosEventos(): List<Evento> {
         return try {
@@ -61,7 +60,7 @@ class EventoRepository(private val context: Context) {
     }
     
     /**
-     * Obtener evento por ID
+     * Obtiene un evento por ID
      */
     suspend fun obtenerEventoPorId(id: Long): Evento? {
         return try {
@@ -78,7 +77,7 @@ class EventoRepository(private val context: Context) {
     }
     
     /**
-     * Crear nuevo evento
+     * Crea un nuevo evento
      */
     suspend fun crearEvento(evento: Evento): Evento? {
         return try {
@@ -102,7 +101,7 @@ class EventoRepository(private val context: Context) {
     }
     
     /**
-     * Actualizar evento existente
+     * Actualiza un evento existente
      */
     suspend fun actualizarEvento(evento: Evento): Boolean {
         return try {
@@ -129,7 +128,7 @@ class EventoRepository(private val context: Context) {
     }
     
     /**
-     * Eliminar evento
+     * Elimina un evento por su ID
      */
     suspend fun eliminarEvento(id: Long): Boolean {
         return try {

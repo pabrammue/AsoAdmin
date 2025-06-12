@@ -10,7 +10,7 @@ class SocioRepository(private val context: Context) {
     private val client = supabaseClient(context).getClient()
     
     /**
-     * Obtener todos los socios
+     * Obtiene todos los socios
      */
     suspend fun obtenerTodosLosSocios(): List<Socio> {
         return try {
@@ -24,7 +24,7 @@ class SocioRepository(private val context: Context) {
     }
     
     /**
-     * Obtener socio por ID
+     * Obtiene socio por ID
      */
     suspend fun obtenerSocioPorId(id: Long): Socio? {
         return try {
@@ -41,7 +41,7 @@ class SocioRepository(private val context: Context) {
     }
     
     /**
-     * Buscar socios por criterios
+     * Filtra los socios por criterios para la búsqueda
      */
     suspend fun buscarSocios(query: String): List<Socio> {
         return try {
@@ -63,7 +63,7 @@ class SocioRepository(private val context: Context) {
     }
     
     /**
-     * Obtener socio por número de socio
+     * Obtiene un socio por su número de socio
      */
     suspend fun obtenerSocioPorNumero(nSocio: Long): Socio? {
         return try {
@@ -80,7 +80,7 @@ class SocioRepository(private val context: Context) {
     }
     
     /**
-     * Obtener socio por DNI
+     * Obtiene un socio por su DNI
      */
     suspend fun obtenerSocioPorDni(dni: String): Socio? {
         return try {

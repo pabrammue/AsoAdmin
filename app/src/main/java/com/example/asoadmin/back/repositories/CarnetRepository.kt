@@ -1,6 +1,8 @@
 package com.example.asoadmin.back.repositories
 
 import android.content.Context
+import android.os.Build
+import androidx.annotation.RequiresApi
 import com.example.asoadmin.DDBB.supabaseClient
 import com.example.asoadmin.back.classes.Carnet
 import io.github.jan.supabase.postgrest.postgrest
@@ -12,8 +14,9 @@ class CarnetRepository(private val context: Context) {
     private val client = supabaseClient(context).getClient()
     
     /**
-     * Crear un nuevo carnet
+     * Crea un nuevo carnet
      */
+    @RequiresApi(Build.VERSION_CODES.O)
     suspend fun crearCarnet(idSocio: Long): Carnet? {
         return try {
             val fechaEmision = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
@@ -36,7 +39,7 @@ class CarnetRepository(private val context: Context) {
     }
     
     /**
-     * Obtener carnet por ID de socio
+     * Obtiene el carnet por ID de socio
      */
     suspend fun obtenerCarnetPorIdSocio(idSocio: Long): Carnet? {
         return try {
@@ -53,14 +56,14 @@ class CarnetRepository(private val context: Context) {
     }
     
     /**
-     * Verificar si un socio ya tiene carnet
+     * Verifica si un socio ya tiene carnet
      */
     suspend fun socioTieneCarnet(idSocio: Long): Boolean {
         return obtenerCarnetPorIdSocio(idSocio) != null
     }
     
     /**
-     * Obtener todos los carnets
+     * Obtiene todos los carnets
      */
     suspend fun obtenerTodosLosCarnets(): List<Carnet> {
         return try {
@@ -74,7 +77,7 @@ class CarnetRepository(private val context: Context) {
     }
     
     /**
-     * Eliminar carnet por ID
+     * Elimina un carnet por ID
      */
     suspend fun eliminarCarnet(id: Long?): Boolean {
         return try {

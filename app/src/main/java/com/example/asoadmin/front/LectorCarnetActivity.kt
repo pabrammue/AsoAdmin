@@ -59,13 +59,19 @@ import com.example.asoadmin.ui.theme.AsoAdminTheme
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 
+//----------------------------------------------------------------------------------------------
+// COMPONENTE: ACTIVITY PRINCIPAL DE LECTOR NFC
+// DESCRIPCIÓN: Activity para lectura de carnets mediante NFC y registro de asistencia a eventos
+//----------------------------------------------------------------------------------------------
 class LectorCarnetActivity : ComponentActivity() {
     
+    // Componentes NFC
     private var nfcAdapter: NfcAdapter? = null
     private var pendingIntent: PendingIntent? = null
     private var intentFiltersArray: Array<IntentFilter>? = null
     private var techListsArray: Array<Array<String>>? = null
     
+    // Servicios
     private lateinit var carnetService: CarnetService
     private lateinit var asistenciaRepository: AsistenciaRepository
     private lateinit var registroService: RegistroService
@@ -77,12 +83,17 @@ class LectorCarnetActivity : ComponentActivity() {
     private var eventoFecha: String = ""
     private var eventoUbicacion: String = ""
     
+    // Estados de UI
     private var escaneandoNFC by mutableStateOf(false)
     private var ultimoCarnetLeido by mutableStateOf<DatosCarnetNFC?>(null)
     private var socioEncontrado by mutableStateOf<Socio?>(null)
     private var tieneAsistencia by mutableStateOf<Boolean?>(null)
     private var mensajeEstado by mutableStateOf("Acerca una tarjeta NFC para verificar el carnet")
     
+    //----------------------------------------------------------------------------------------------
+    // COMPONENTE: INICIALIZACIÓN DE ACTIVITY
+    // DESCRIPCIÓN: Configura la Activity, inicializa servicios y configura NFC
+    //----------------------------------------------------------------------------------------------
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
@@ -112,6 +123,10 @@ class LectorCarnetActivity : ComponentActivity() {
         }
     }
     
+    //----------------------------------------------------------------------------------------------
+    // COMPONENTE: CONFIGURACIÓN NFC 
+    // DESCRIPCIÓN: Configura el adaptador NFC y los filtros para la detección de tarjetas
+    //----------------------------------------------------------------------------------------------
     private fun configurarNFC() {
         nfcAdapter = NfcAdapter.getDefaultAdapter(this)
         
@@ -153,6 +168,10 @@ class LectorCarnetActivity : ComponentActivity() {
         techListsArray = arrayOf(arrayOf(Ndef::class.java.name))
     }
     
+    //----------------------------------------------------------------------------------------------
+    // COMPONENTE: GESTIÓN DEL CICLO DE VIDA
+    // DESCRIPCIÓN: Maneja los eventos del ciclo de vida para activar/desactivar NFC
+    //----------------------------------------------------------------------------------------------
     override fun onResume() {
         super.onResume()
         android.util.Log.d("NFC_DEBUG", "onResume() llamado")
@@ -170,6 +189,10 @@ class LectorCarnetActivity : ComponentActivity() {
         android.util.Log.d("NFC_DEBUG", "escaneandoNFC establecido a: $escaneandoNFC")
     }
     
+    //----------------------------------------------------------------------------------------------
+    // COMPONENTE: DETECCIÓN DE NFC
+    // DESCRIPCIÓN: Maneja los intents recibidos cuando se detecta una tarjeta NFC
+    //----------------------------------------------------------------------------------------------
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         
@@ -206,6 +229,10 @@ class LectorCarnetActivity : ComponentActivity() {
         }
     }
     
+    //----------------------------------------------------------------------------------------------
+    // COMPONENTE: PROCESAMIENTO DE CARNETS NFC
+    // DESCRIPCIÓN: Lee y procesa la tarjeta NFC para extraer la información del carnet
+    //----------------------------------------------------------------------------------------------
     private fun leerCarnetNFC(tag: Tag) {
         android.util.Log.d("NFC_DEBUG", "Iniciando lectura de tarjeta NFC")
         val tiempoInicio = System.currentTimeMillis()

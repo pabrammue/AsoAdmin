@@ -8,6 +8,9 @@ import io.github.jan.supabase.postgrest.postgrest
 class AdministradorRepository(private val context: Context) {
     private val client = supabaseClient(context).getClient()
 
+    /**
+     * Recibe todos los administradores de la base de datos para comprobar si las credenciales son correctas en la pantalla de LogIn
+     */
     suspend fun obtenerTodos(): List<Administrador> {
         return try {
             client.postgrest["Administrador"]
@@ -16,46 +19,6 @@ class AdministradorRepository(private val context: Context) {
         } catch (e: Exception) {
             println("Error al obtener administradores: ${e.message}")
             emptyList()
-        }
-    }
-
-    suspend fun obtenerPorId(id: Long): Administrador? {
-        return try {
-            client.postgrest["Administrador"]
-                .select {
-                    eq("id", id)
-                }
-                .decodeSingleOrNull<Administrador>()
-        } catch (e: Exception) {
-            println("Error al obtener administrador por ID: ${e.message}")
-            null
-        }
-    }
-
-    suspend fun obtenerPorNombreUsuario(nombreUsuario: String): Administrador? {
-        return try {
-            client.postgrest["Administrador"]
-                .select {
-                    eq("nombre", nombreUsuario)
-                }
-                .decodeSingleOrNull<Administrador>()
-        } catch (e: Exception) {
-            println("Error al obtener administrador por nombre de usuario: ${e.message}")
-            null
-        }
-    }
-
-    suspend fun autenticar(nombreUsuario: String, password: String): Administrador? {
-        return try {
-            client.postgrest["Administrador"]
-                .select {
-                    eq("nombre", nombreUsuario)
-                    eq("contraseña", password)
-                }
-                .decodeSingleOrNull<Administrador>()
-        } catch (e: Exception) {
-            println("Error al autenticar administrador: ${e.message}")
-            null
         }
     }
 } 

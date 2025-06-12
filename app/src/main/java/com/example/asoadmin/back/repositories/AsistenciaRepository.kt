@@ -11,14 +11,17 @@ class AsistenciaRepository(private val context: Context) {
     
     private val client = supabaseClient(context).getClient()
     
-    // Función auxiliar para formatear fecha para la base de datos
+    /**
+     * Función auxiliar para formatear fecha para la base de datos
+     */
+
     private fun formatearFechaParaDB(fechaString: String): String {
         return try {
-            // Si la fecha ya está en formato YYYY-MM-DD, devolverla tal como está
+            //Si la fecha ya está en formato YYYY-MM-DD, devolverla tal como está
             if (fechaString.matches(Regex("\\d{4}-\\d{2}-\\d{2}"))) {
                 fechaString
             } else {
-                // Intentar parsear diferentes formatos comunes y convertir a YYYY-MM-DD
+                //Intentar parsear diferentes formatos comunes y convertir a YYYY-MM-DD
                 val formatosEntrada = listOf(
                     SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()),
                     SimpleDateFormat("MM/dd/yyyy", Locale.getDefault()),
@@ -33,21 +36,18 @@ class AsistenciaRepository(private val context: Context) {
                             return formatoSalida.format(fecha)
                         }
                     } catch (e: Exception) {
-                        // Continuar con el siguiente formato
                     }
                 }
                 
-                // Si no se puede parsear, devolver la fecha tal como está
                 fechaString
             }
         } catch (e: Exception) {
-            // En caso de error, devolver la fecha original
             fechaString
         }
     }
     
     /**
-     * Obtener todas las asistencias de un evento
+     * Reccibe las asistencias asociadas a un evento
      */
     suspend fun obtenerAsistenciasPorEvento(eventoId: Long): List<Asistencia> {
         return try {
@@ -61,25 +61,10 @@ class AsistenciaRepository(private val context: Context) {
             emptyList()
         }
     }
+
     
     /**
-     * Obtener todas las asistencias de un socio
-     */
-    suspend fun obtenerAsistenciasPorSocio(socioId: Long): List<Asistencia> {
-        return try {
-            client.postgrest["Asistencia"]
-                .select {
-                    eq("idSocio", socioId)
-                }
-                .decodeList<Asistencia>()
-        } catch (e: Exception) {
-            e.printStackTrace()
-            emptyList()
-        }
-    }
-    
-    /**
-     * Crear nueva asistencia
+     * Crea una nueva asistencia a un evento
      */
     suspend fun crearAsistencia(eventoId: Long, socioId: Long, fechaEvento: String): Boolean {
         return try {
@@ -101,7 +86,7 @@ class AsistenciaRepository(private val context: Context) {
     }
     
     /**
-     * Eliminar asistencia específica
+     * Elimina una asistencia específica de un socio a un evento
      */
     suspend fun eliminarAsistencia(eventoId: Long, socioId: Long): Boolean {
         return try {
@@ -118,7 +103,7 @@ class AsistenciaRepository(private val context: Context) {
     }
     
     /**
-     * Eliminar todas las asistencias de un evento
+     * Elimina todas las asistencias de un evento
      */
     suspend fun eliminarAsistenciasPorEvento(eventoId: Long): Boolean {
         return try {
@@ -134,7 +119,7 @@ class AsistenciaRepository(private val context: Context) {
     }
     
     /**
-     * Verificar si un socio está registrado en un evento
+     * Verifica si un socio está registrado en un evento
      */
     suspend fun verificarAsistencia(eventoId: Long, socioId: Long): Boolean {
         return try {
@@ -153,7 +138,7 @@ class AsistenciaRepository(private val context: Context) {
     }
     
     /**
-     * Crear múltiples asistencias de una vez
+     * Crea múltiples asistencias de una vez
      */
     suspend fun crearAsistenciasMasivas(eventoId: Long, sociosIds: Set<Long>, fechaEvento: String): Int {
         var exitosas = 0

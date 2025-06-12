@@ -1,11 +1,11 @@
 package com.example.asoadmin.back.services
 
 import android.content.Context
+import com.example.asoadmin.back.classes.Asistencia
 import com.example.asoadmin.back.classes.Evento
 import com.example.asoadmin.back.classes.Socio
-import com.example.asoadmin.back.classes.Asistencia
-import com.example.asoadmin.back.repositories.EventoRepository
 import com.example.asoadmin.back.repositories.AsistenciaRepository
+import com.example.asoadmin.back.repositories.EventoRepository
 import com.example.asoadmin.back.repositories.SocioRepository
 
 class EventoService(private val context: Context) {
@@ -15,33 +15,14 @@ class EventoService(private val context: Context) {
     private val socioRepository = SocioRepository(context)
     
     /**
-     * Obtener todos los eventos
+     * Obtiene todos los eventos
      */
     suspend fun obtenerTodosLosEventos(): List<Evento> {
         return eventoRepository.obtenerTodosLosEventos()
     }
-    
+
     /**
-     * Obtener evento con detalles de asistencias
-     */
-    suspend fun obtenerEventoConAsistencias(eventoId: Long): EventoConAsistencias? {
-        val evento = eventoRepository.obtenerEventoPorId(eventoId) ?: return null
-        val asistencias = asistenciaRepository.obtenerAsistenciasPorEvento(eventoId)
-        val sociosParticipantes = asistencias.mapNotNull { asistencia ->
-            asistencia.idSocio?.let { socioId ->
-                socioRepository.obtenerSocioPorId(socioId)
-            }
-        }
-        
-        return EventoConAsistencias(
-            evento = evento,
-            asistencias = asistencias,
-            sociosParticipantes = sociosParticipantes
-        )
-    }
-    
-    /**
-     * Crear evento con participantes
+     * Crea un evento con participantes para no tener que hacer una llamda a crearAsistencia por cada socio
      */
     suspend fun crearEventoConParticipantes(
         evento: Evento, 
@@ -72,7 +53,7 @@ class EventoService(private val context: Context) {
     }
     
     /**
-     * Actualizar evento (solo datos básicos)
+     * Actualiza un evento (solo datos básicos)
      */
     suspend fun actualizarEvento(evento: Evento): ResultadoOperacion<Boolean> {
         return try {
@@ -88,7 +69,7 @@ class EventoService(private val context: Context) {
     }
     
     /**
-     * Eliminar evento con todas sus asistencias
+     * Elimina un evento con todas sus asistencias en cascada
      */
     suspend fun eliminarEventoCompleto(eventoId: Long): ResultadoOperacion<Boolean> {
         return try {
@@ -109,7 +90,7 @@ class EventoService(private val context: Context) {
     }
     
     /**
-     * Agregar participante a evento
+     * Agrega un socio al evento
      */
     suspend fun agregarParticipante(
         eventoId: Long, 
@@ -135,19 +116,19 @@ class EventoService(private val context: Context) {
     }
     
     /**
-     * Remover participante de evento
+     * Borra un socio del evento
      */
-    suspend fun removerParticipante(eventoId: Long, socioId: Long): ResultadoOperacion<Boolean> {
+    suspend fun borrarSocio(eventoId: Long, socioId: Long): ResultadoOperacion<Boolean> {
         return try {
             val resultado = asistenciaRepository.eliminarAsistencia(eventoId, socioId)
             
             if (resultado) {
-                ResultadoOperacion.Exito(true, "Participante removido exitosamente")
+                ResultadoOperacion.Exito(true, "Participante borrado exitosamente")
             } else {
-                ResultadoOperacion.Error("No se pudo remover el participante")
+                ResultadoOperacion.Error("No se pudo borrar el participante")
             }
         } catch (e: Exception) {
-            ResultadoOperacion.Error("Error al remover participante: ${e.message}")
+            ResultadoOperacion.Error("Error al borrar participante: ${e.message}")
         }
     }
     

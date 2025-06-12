@@ -70,6 +70,10 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+//----------------------------------------------------------------------------------------------
+// COMPONENTE: ACTIVITY PRINCIPAL
+// DESCRIPCIÓN: Punto de entrada de la pantalla de listado de eventos, configura el tema y contenido
+//----------------------------------------------------------------------------------------------
 class EventListActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -84,6 +88,10 @@ class EventListActivity : ComponentActivity() {
     }
 }
 
+//----------------------------------------------------------------------------------------------
+// COMPONENTE: BOTTOM SHEET DE OPCIONES
+// DESCRIPCIÓN: Panel modal inferior con opciones para editar, eliminar, ver ubicación y exportar
+//----------------------------------------------------------------------------------------------
 @Composable
 fun EventOptionsBottomSheet(
     event: Evento,
@@ -244,7 +252,10 @@ fun EventOptionsBottomSheet(
     }
 }
 
-// Función para exportar registros de un evento a CSV
+//----------------------------------------------------------------------------------------------
+// COMPONENTE: FUNCIÓN DE EXPORTACIÓN DE REGISTROS 
+// DESCRIPCIÓN: Exporta los registros de asistencia de un evento a un archivo CSV
+//----------------------------------------------------------------------------------------------
 suspend fun exportarRegistrosEvento(context: Context, evento: Evento) {
     try {
         val registroService = RegistroService(context)
@@ -305,7 +316,10 @@ suspend fun exportarRegistrosEvento(context: Context, evento: Evento) {
     }
 }
 
-// Función para compartir archivo usando el sistema de Android
+//----------------------------------------------------------------------------------------------
+// COMPONENTE: FUNCIÓN PARA COMPARTIR ARCHIVO
+// DESCRIPCIÓN: Permite compartir un archivo usando el sistema de Android
+//----------------------------------------------------------------------------------------------
 fun compartirArchivo(context: Context, file: File) {
     try {
         val uri = FileProvider.getUriForFile(
@@ -332,7 +346,10 @@ fun compartirArchivo(context: Context, file: File) {
     }
 }
 
-// Función para abrir la ubicación en Google Maps
+//----------------------------------------------------------------------------------------------
+// COMPONENTE: FUNCIÓN PARA ABRIR MAPS 
+// DESCRIPCIÓN: Abre Google Maps con una ubicación específica
+//----------------------------------------------------------------------------------------------
 fun openLocationInMaps(context: android.content.Context, locationUrl: String) {
     try {
         val intent = Intent(Intent.ACTION_VIEW).apply {
@@ -360,6 +377,10 @@ fun openLocationInMaps(context: android.content.Context, locationUrl: String) {
     }
 }
 
+//----------------------------------------------------------------------------------------------
+// COMPONENTE: PANTALLA PRINCIPAL DE LISTADO DE EVENTOS
+// DESCRIPCIÓN: Muestra la lista de eventos con sus opciones y maneja la navegación
+//----------------------------------------------------------------------------------------------
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EventListScreen() {
@@ -447,6 +468,10 @@ fun EventListScreen() {
                 }
             }
         ) { padding ->
+            //----------------------------------------------------------------------------------------------
+            // COMPONENTE: LISTA DE EVENTOS
+            // DESCRIPCIÓN: Muestra cada evento en formato de tarjeta
+            //----------------------------------------------------------------------------------------------
             Column(
                 Modifier
                     .padding(padding)
@@ -493,7 +518,10 @@ fun EventListScreen() {
                 }
             }
 
-            // Bottom Sheet Modal con opciones del evento
+            //----------------------------------------------------------------------------------------------
+            // COMPONENTE: MODAL BOTTOM SHEET
+            // DESCRIPCIÓN: Se muestra al hacer clic en un evento para ver sus opciones
+            //----------------------------------------------------------------------------------------------
             if (showBottomSheet && selectedEvent != null) {
                 ModalBottomSheet(
                     onDismissRequest = { showBottomSheet = false },
@@ -534,6 +562,10 @@ fun EventListScreen() {
                 }
             }
 
+            //----------------------------------------------------------------------------------------------
+            // COMPONENTE: DIÁLOGO DE CONFIRMACIÓN PARA ELIMINAR
+            // DESCRIPCIÓN: Confirma la eliminación de un evento
+            //----------------------------------------------------------------------------------------------
             if (showDialog && toDelete != null) {
                 AlertDialog(
                     onDismissRequest = { showDialog = false },
@@ -573,7 +605,10 @@ fun EventListScreen() {
                 )
             }
 
-            // Diálogo de confirmación para abrir Maps
+            //----------------------------------------------------------------------------------------------
+            // COMPONENTE: DIÁLOGO DE CONFIRMACIÓN PARA MAPS
+            // DESCRIPCIÓN: Confirma la apertura de Google Maps
+            //----------------------------------------------------------------------------------------------
             if (showMapsDialog) {
                 AlertDialog(
                     onDismissRequest = { showMapsDialog = false },

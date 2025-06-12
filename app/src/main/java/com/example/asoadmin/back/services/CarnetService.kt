@@ -1,25 +1,29 @@
 package com.example.asoadmin.back.services
 
+import android.annotation.SuppressLint
 import android.content.Context
+import android.os.Build
+import androidx.annotation.RequiresApi
 import com.example.asoadmin.back.classes.Carnet
 import com.example.asoadmin.back.classes.Socio
 import com.example.asoadmin.back.repositories.CarnetRepository
 import com.example.asoadmin.back.repositories.SocioRepository
 import kotlinx.serialization.Serializable
-import java.security.MessageDigest
 import java.nio.charset.StandardCharsets
+import java.security.MessageDigest
 
 class CarnetService(private val context: Context) {
     
     private val carnetRepository = CarnetRepository(context)
     private val socioRepository = SocioRepository(context)
     
-    // Salt específico de la aplicación para mayor seguridad
+    // Salt específico de la aplicación para mayor seguridad al crear claves encriptadas
     private val APP_SALT = "AsoAdmin_2024_SecureKey"
     
     /**
-     * Crear un carnet para un socio
+     * Crea un carnet para un socio
      */
+    @RequiresApi(Build.VERSION_CODES.O)
     suspend fun crearCarnetParaSocio(idSocio: Long): ResultadoOperacion<Carnet> {
         return try {
             // Verificar que el socio existe
@@ -46,7 +50,7 @@ class CarnetService(private val context: Context) {
     }
     
     /**
-     * Obtener información completa de un socio con su carnet
+     * Obtiene información completa de un socio con su carnet
      */
     suspend fun obtenerSocioConCarnet(idSocio: Long): SocioConCarnet? {
         return try {
@@ -65,7 +69,7 @@ class CarnetService(private val context: Context) {
     }
     
     /**
-     * Obtener todos los socios con información de si tienen carnet
+     * Obtiene todos los socios con información de si tienen carnet
      */
     suspend fun obtenerTodosSociosConEstadoCarnet(): List<SocioConCarnet> {
         return try {
@@ -84,27 +88,9 @@ class CarnetService(private val context: Context) {
             emptyList()
         }
     }
-    
+
     /**
-     * Verificar si un socio puede tener un carnet
-     */
-    suspend fun puedeCrearCarnet(idSocio: Long): ResultadoOperacion<Boolean> {
-        return try {
-            val socio = socioRepository.obtenerSocioPorId(idSocio)
-            if (socio == null) {
-                ResultadoOperacion.Error("El socio no existe")
-            } else if (carnetRepository.socioTieneCarnet(idSocio)) {
-                ResultadoOperacion.Error("El socio ya tiene un carnet")
-            } else {
-                ResultadoOperacion.Exito(true, "El socio puede tener un carnet")
-            }
-        } catch (e: Exception) {
-            ResultadoOperacion.Error("Error al verificar: ${e.message}")
-        }
-    }
-    
-    /**
-     * Eliminar carnet de un socio
+     * Elimina el carnet de un socio
      */
     suspend fun eliminarCarnetDeSocio(idSocio: Long): ResultadoOperacion<Boolean> {
         return try {
@@ -125,7 +111,7 @@ class CarnetService(private val context: Context) {
     }
     
     /**
-     * Generar clave encriptada basada en DNI
+     * Genera la clave encriptada basada en DNI
      */
     private fun generarClaveEncriptada(dni: String?): String {
         if (dni.isNullOrBlank()) {
@@ -149,7 +135,7 @@ class CarnetService(private val context: Context) {
     }
     
     /**
-     * Generar datos para escribir en tarjeta NFC (solo clave encriptada)
+     * Genera datos para escribir en tarjeta NFC (solo clave encriptada)
      */
     fun generarDatosNFC(socio: Socio, carnet: Carnet): DatosCarnetNFC {
         val claveEncriptada = generarClaveEncriptada(socio.dni)
@@ -163,7 +149,7 @@ class CarnetService(private val context: Context) {
     }
     
     /**
-     * Verificar si una clave encriptada corresponde a un DNI específico
+     * Verifica si una clave encriptada corresponde a un DNI específico
      */
     fun verificarClaveEncriptada(claveEncriptada: String, dni: String?): Boolean {
         if (dni.isNullOrBlank()) return false
@@ -173,7 +159,7 @@ class CarnetService(private val context: Context) {
     }
     
     /**
-     * Buscar socio por clave encriptada
+     * Busca un socio por su clave encriptada
      */
     suspend fun buscarSocioPorClaveEncriptada(claveEncriptada: String): Socio? {
         return try {
@@ -193,6 +179,7 @@ class CarnetService(private val context: Context) {
 /**
  * Clase de datos serializable para escribir en tarjetas NFC (solo clave encriptada)
  */
+@SuppressLint("UnsafeOptInUsageError") //Solo sirve para que no salte en rojo, pero funciona bien
 @Serializable
 data class DatosCarnetNFC(
     val claveEncriptada: String,

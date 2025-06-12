@@ -60,6 +60,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+//----------------------------------------------------------------------------------------------
+// COMPONENTE: ACTIVITY PRINCIPAL DE LOGIN
+// DESCRIPCIÓN: Punto de entrada para la pantalla de autenticación de administradores
+//----------------------------------------------------------------------------------------------
 class LoginActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -79,6 +83,10 @@ class LoginActivity : ComponentActivity() {
     }
 }
 
+//----------------------------------------------------------------------------------------------
+// COMPONENTE: PANTALLA DE LOGIN
+// DESCRIPCIÓN: Formulario de autenticación con campos de usuario y contraseña
+//----------------------------------------------------------------------------------------------
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen() {
@@ -113,6 +121,10 @@ fun LoginScreen() {
         }
     }
 
+    //----------------------------------------------------------------------------------------------
+    // COMPONENTE: FORMULARIO DE LOGIN
+    // DESCRIPCIÓN: Campos de entrada para usuario y contraseña
+    //----------------------------------------------------------------------------------------------
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -182,6 +194,11 @@ fun LoginScreen() {
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        //----------------------------------------------------------------------------------------------
+        // COMPONENTE: BOTONES DE ACCIÓN
+        // DESCRIPCIÓN: Botones para iniciar sesión o acceder al registro de eventos
+        //----------------------------------------------------------------------------------------------
+        
         // Botón Log In
         Button(
             onClick = {
@@ -234,6 +251,11 @@ fun LoginScreen() {
         Divider()
         Spacer(modifier = Modifier.height(24.dp))
 
+        //----------------------------------------------------------------------------------------------
+        // COMPONENTE: SELECTOR DE EVENTO
+        // DESCRIPCIÓN: Permite seleccionar un evento para acceder al registro de asistencias
+        //----------------------------------------------------------------------------------------------
+        
         // Selector de evento
         Column(modifier = Modifier.fillMaxWidth()) {
             Text(
@@ -305,6 +327,10 @@ fun LoginScreen() {
     }
 }
 
+//----------------------------------------------------------------------------------------------
+// COMPONENTE: FUNCIONES AUXILIARES DE AUTENTICACIÓN
+// DESCRIPCIÓN: Funciones para autenticación y navegación post-login
+//----------------------------------------------------------------------------------------------
 suspend fun authenticate(usuario: String, contrasenya: String, context: Context): Boolean {
     return try {
         val administradorRepo = AdministradorRepository(context)

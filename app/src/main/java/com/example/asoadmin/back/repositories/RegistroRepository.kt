@@ -10,7 +10,7 @@ class RegistroRepository(private val context: Context) {
     private val client = supabaseClient(context).getClient()
     
     /**
-     * Crear un nuevo registro de lectura de tarjeta
+     * Crea un nuevo registro de lectura de tarjeta
      */
     suspend fun crearRegistro(idSocio: Long, idEvento: Long): Registro? {
         return try {
@@ -33,7 +33,7 @@ class RegistroRepository(private val context: Context) {
     }
     
     /**
-     * Obtener todos los registros de un evento
+     * Obtiene todos los registros de un evento
      */
     suspend fun obtenerRegistrosPorEvento(idEvento: Long): List<Registro> {
         return try {
@@ -49,7 +49,7 @@ class RegistroRepository(private val context: Context) {
     }
     
     /**
-     * Obtener todos los registros de un socio
+     * Obtiene todos los registros de un socio
      */
     suspend fun obtenerRegistrosPorSocio(idSocio: Long): List<Registro> {
         return try {
@@ -63,23 +63,10 @@ class RegistroRepository(private val context: Context) {
             emptyList()
         }
     }
+
     
     /**
-     * Obtener todos los registros
-     */
-    suspend fun obtenerTodosLosRegistros(): List<Registro> {
-        return try {
-            client.postgrest["Registro"]
-                .select()
-                .decodeList<Registro>()
-        } catch (e: Exception) {
-            e.printStackTrace()
-            emptyList()
-        }
-    }
-    
-    /**
-     * Verificar si ya existe un registro para un socio en un evento específico
+     * Verifica si ya existe un registro para un socio en un evento concreto
      */
     suspend fun existeRegistro(idSocio: Long, idEvento: Long): Boolean {
         return try {

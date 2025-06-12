@@ -5,7 +5,9 @@ import java.util.Properties
 
 object ConfigManager {
     private var properties: Properties? = null
-    
+
+    //Aqui se carga el archivo de propiedades desde los assets para mayor comodidad y claridad
+
     private fun loadProperties(context: Context): Properties {
         if (properties == null) {
             properties = Properties()
@@ -26,10 +28,6 @@ object ConfigManager {
     
     fun getSupabaseKey(context: Context): String {
         return loadProperties(context).getProperty("SUPABASE_KEY", "")
-    }
-    
-    fun getSupabasePassword(context: Context): String {
-        return loadProperties(context).getProperty("SUPABASE_PASSWORD", "")
     }
     
     fun getMapsApiKey(context: Context): String {
