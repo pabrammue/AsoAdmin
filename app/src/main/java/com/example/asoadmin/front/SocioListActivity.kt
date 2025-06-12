@@ -51,6 +51,17 @@ class SocioListActivity : ComponentActivity() {
     
     private var socioSeleccionado by mutableStateOf<SocioConCarnet?>(null)
     private var esperandoNFC by mutableStateOf(false)
+    private var sociosConCarnet by mutableStateOf<List<SocioConCarnet>>(emptyList())
+    private var isLoading by mutableStateOf(true)
+    
+    // Función para recargar datos desde cualquier parte de la clase
+    private fun recargarDatos() {
+        lifecycleScope.launch {
+            isLoading = true
+            sociosConCarnet = carnetService.obtenerTodosSociosConEstadoCarnet()
+            isLoading = false
+        }
+    }
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -60,6 +71,9 @@ class SocioListActivity : ComponentActivity() {
         
         // Configurar NFC
         configurarNFC()
+        
+        // Cargar datos iniciales
+        recargarDatos()
         
         setContent {
             AsoAdminTheme(
@@ -128,12 +142,17 @@ class SocioListActivity : ComponentActivity() {
     
     private fun escribirEnTarjeta(tag: Tag, socioConCarnet: SocioConCarnet) {
         lifecycleScope.launch {
+            var carnetCreado: Boolean = false
+            var carnetTemporal: com.example.asoadmin.back.classes.Carnet? = null
+            
             try {
                 val ndef = Ndef.get(tag)
                 
                 if (ndef == null) {
                     runOnUiThread {
                         Toast.makeText(this@SocioListActivity, "La tarjeta no soporta NDEF", Toast.LENGTH_SHORT).show()
+                        esperandoNFC = false
+                        socioSeleccionado = null
                     }
                     return@launch
                 }
@@ -144,16 +163,23 @@ class SocioListActivity : ComponentActivity() {
                 if (!ndef.canMakeReadOnly()) {
                     runOnUiThread {
                         Toast.makeText(this@SocioListActivity, "Esta tarjeta no puede ser bloqueada permanentemente", Toast.LENGTH_LONG).show()
+                        esperandoNFC = false
+                        socioSeleccionado = null
                     }
                     ndef.close()
                     return@launch
                 }
                 
-                // Crear carnet en la base de datos si no existe
+                // Si no tiene carnet, crearlo en la base de datos PERO guardamos referencia para poder eliminarlo si falla
                 val resultado = if (socioConCarnet.tieneCarnet) {
                     ResultadoOperacion.Exito(socioConCarnet.carnet!!, "Reescribiendo carnet existente")
                 } else {
-                    carnetService.crearCarnetParaSocio(socioConCarnet.socio.id!!)
+                    carnetService.crearCarnetParaSocio(socioConCarnet.socio.id!!).also { result ->
+                        if (result is ResultadoOperacion.Exito) {
+                            carnetCreado = true
+                            carnetTemporal = result.datos
+                        }
+                    }
                 }
                 
                 when (resultado) {
@@ -192,6 +218,8 @@ class SocioListActivity : ComponentActivity() {
                             }
                             esperandoNFC = false
                             socioSeleccionado = null
+                            // Recargar datos para actualizar la pantalla
+                            recargarDatos()
                         }
                     }
                     
@@ -211,11 +239,21 @@ class SocioListActivity : ComponentActivity() {
                 
             } catch (e: Exception) {
                 e.printStackTrace()
+                
+                // Si se creó un carnet nuevo y falló la escritura NFC, eliminarlo de la base de datos
+                if (carnetCreado && carnetTemporal != null) {
+                    try {
+                        carnetService.eliminarCarnetDeSocio(socioConCarnet.socio.id!!)
+                    } catch (deleteError: Exception) {
+                        android.util.Log.e("NFC_ERROR", "Error al eliminar carnet temporal: ${deleteError.message}")
+                    }
+                }
+                
                 runOnUiThread {
                     Toast.makeText(
                         this@SocioListActivity,
-                        "Error al escribir en la tarjeta: ${e.message}",
-                        Toast.LENGTH_SHORT
+                        "Error al escribir en la tarjeta: ${e.message}\n${if (carnetCreado) "El carnet no se guardó en la base de datos." else ""}",
+                        Toast.LENGTH_LONG
                     ).show()
                     esperandoNFC = false
                     socioSeleccionado = null
@@ -228,23 +266,13 @@ class SocioListActivity : ComponentActivity() {
     @Composable
     fun SocioListScreen() {
         val context = LocalContext.current
-        var sociosConCarnet by remember { mutableStateOf<List<SocioConCarnet>>(emptyList()) }
         var searchQuery by remember { mutableStateOf("") }
-        var isLoading by remember { mutableStateOf(true) }
         var showCrearCarnetDialog by remember { mutableStateOf(false) }
         var socioParaCarnet by remember { mutableStateOf<SocioConCarnet?>(null) }
         val scope = rememberCoroutineScope()
 
         // Estados del navigation drawer
         val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
-
-        fun recargarDatos() {
-            scope.launch {
-                isLoading = true
-                sociosConCarnet = carnetService.obtenerTodosSociosConEstadoCarnet()
-                isLoading = false
-            }
-        }
 
         LaunchedEffect(Unit) {
             recargarDatos()

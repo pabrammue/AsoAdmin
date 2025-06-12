@@ -53,6 +53,8 @@ import com.example.asoadmin.back.classes.Socio
 import com.example.asoadmin.back.repositories.AsistenciaRepository
 import com.example.asoadmin.back.services.CarnetService
 import com.example.asoadmin.back.services.DatosCarnetNFC
+import com.example.asoadmin.back.services.RegistroService
+import com.example.asoadmin.back.services.ResultadoOperacion
 import com.example.asoadmin.ui.theme.AsoAdminTheme
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
@@ -66,6 +68,7 @@ class LectorCarnetActivity : ComponentActivity() {
     
     private lateinit var carnetService: CarnetService
     private lateinit var asistenciaRepository: AsistenciaRepository
+    private lateinit var registroService: RegistroService
     
     // Datos del evento
     private var eventoId: Long = -1L
@@ -95,6 +98,7 @@ class LectorCarnetActivity : ComponentActivity() {
         // Inicializar servicios
         carnetService = CarnetService(this)
         asistenciaRepository = AsistenciaRepository(this)
+        registroService = RegistroService(this)
         
         // Configurar NFC
         configurarNFC()
@@ -280,7 +284,7 @@ class LectorCarnetActivity : ComponentActivity() {
                     if (socio != null) {
                         android.util.Log.d("NFC_DEBUG", "Detalles del socio - ID: ${socio.id}, N° Socio: ${socio.nSocio}, DNI: ${socio.dni}")
                         
-                        // Verificar asistencia al evento específico
+                        // Verificar asistencia al evento específico PRIMERO
                         if (eventoId != -1L && socio.id != null) {
                             android.util.Log.d("NFC_DEBUG", "Verificando asistencia al evento ID: $eventoId")
                             val tiempoAsistencia = System.currentTimeMillis()
@@ -288,6 +292,26 @@ class LectorCarnetActivity : ComponentActivity() {
                             val tiempoTotalAsistencia = System.currentTimeMillis() - tiempoAsistencia
                             android.util.Log.d("NFC_DEBUG", "Verificación de asistencia completada en ${tiempoTotalAsistencia}ms: $asistenciaVerificada")
                             tieneAsistencia = asistenciaVerificada
+                            
+                            // SOLO REGISTRAR SI EL ACCESO ESTÁ AUTORIZADO
+                            if (asistenciaVerificada) {
+                                android.util.Log.d("REGISTRO_DEBUG", "Acceso autorizado - Creando registro de lectura para socio ${socio.id} en evento $eventoId")
+                                try {
+                                    val resultado = registroService.registrarLecturaCarnet(socio.id, eventoId)
+                                    when (resultado) {
+                                        is ResultadoOperacion.Exito -> {
+                                            android.util.Log.d("REGISTRO_DEBUG", "Registro creado exitosamente: ${resultado.mensaje}")
+                                        }
+                                        is ResultadoOperacion.Error -> {
+                                            android.util.Log.e("REGISTRO_DEBUG", "Error al crear registro: ${resultado.mensaje}")
+                                        }
+                                    }
+                                } catch (e: Exception) {
+                                    android.util.Log.e("REGISTRO_DEBUG", "Excepción al crear registro: ${e.message}")
+                                }
+                            } else {
+                                android.util.Log.d("REGISTRO_DEBUG", "Acceso NO autorizado - No se registra la lectura")
+                            }
                         } else {
                             android.util.Log.d("NFC_DEBUG", "No se puede verificar asistencia - eventoId: $eventoId, socioId: ${socio.id}")
                             tieneAsistencia = null
